@@ -2,6 +2,7 @@ import tkinter as Tk
 from tkinter import ttk
 
 import screens as s
+from communication import initMQTT
 
 import matplotlib.pyplot as plt
 plt.style.use('dark_background')
@@ -73,5 +74,12 @@ prevpagebtn.grid(row= 0, column= 2)
 nextpagebtn = ttk.Button(footerframe, text= "-->", command= nextPage)
 nextpagebtn.grid(row= 0, column= 3)
 
+
+mqtt = initMQTT()
+
+print("[MAIN] Starting MQTT loop...")
+mqtt.loop_start()
+
+print("[MAIN] Starting Tk graphics loop...")
 _makePage()
 Tk.mainloop()
