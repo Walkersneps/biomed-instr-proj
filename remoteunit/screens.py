@@ -7,15 +7,16 @@ from matplotlib.animation import FuncAnimation
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 class Screen:
-    def __init__(self) -> None:
+    def __init__(self, samples) -> None:
         self.anim = None
         self.canvas = None
+        self.samples = samples
 
     def _animateFrame(self, _):
         pass
 
     def animate(self):
-        self.anim = FuncAnimation(plt.gcf(), self._animateFrame, interval= 16, blit= False, frames= [0, 1])
+        self.anim = FuncAnimation(plt.gcf(), self._animateFrame, interval= 500, blit= False, frames= [0, 1])
     
     def stop(self):
         del self.anim
