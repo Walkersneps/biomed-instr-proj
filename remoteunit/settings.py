@@ -18,4 +18,4 @@ MQTT_TOPIC_PREFIX: str = "signal/"
 
 
 # DERIVED VALUES #
-MQTT_TOPICS: list(str) = [f"{MQTT_TOPIC_PREFIX}{biosig}" for biosig in BIOSIGNALS]
+MQTT_TOPICS: list[str] = [f"{MQTT_TOPIC_PREFIX}{biosig}" for biosig in BIOSIGNALS]
