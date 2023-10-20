@@ -1,8 +1,10 @@
 BIOSIGNALS: dict[str, dict[str, int]] = {"ECG": {"fsample": 300,
-                                                 "fpacket": 4
+                                                 "fpacket": 4,
+                                                 "overlay": 10
                                                 },
                                          "PPG": {"fsample": 300,
-                                                 "fpacket": 4}
+                                                 "fpacket": 4,
+                                                 "overlay": 10}
                                          #"GSR"
                                         }
 
