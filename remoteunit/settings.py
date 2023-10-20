@@ -1,7 +1,10 @@
-BIOSIGNALS: list(str) = ["ECG",
-                         "PPG"#,
-                         #"GSR"
-                         ]
+BIOSIGNALS: dict[str, dict[str, int]] = {"ECG": {"fsample": 300,
+                                                 "fpacket": 4
+                                                },
+                                         "PPG": {"fsample": 300,
+                                                 "fpacket": 4}
+                                         #"GSR"
+                                        }
 
 
 MQTT_BROKER_ADDR: str = "localhost"

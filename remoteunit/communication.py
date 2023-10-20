@@ -1,10 +1,12 @@
 import settings as cfg
 from paho.mqtt.client import Client as MQTTClient
+from json import dumps as jsondumps
 
 def _sendStartupData(client: MQTTClient):
-    pl = f"MQTT_TOPIC_PREFIX:{cfg.MQTT_TOPIC_PREFIX};BIOSIGNALS:"
-    for biosig in cfg.BIOSIGNALS:
-        pl += f"{biosig},"
+    pl = {"MQTT_TOPIC_PREFIX": cfg.MQTT_TOPIC_PREFIX,
+          "BIOSIGNALS": cfg.BIOSIGNALS
+         }
+    pl = jsondumps(pl)
     print(f"[____] . Configuration string for proximal unit is: {pl}")
 
     print(f"[MQTT] . Sending configuration string @ topic {cfg.MQTT_TOPIC_CFG}...")
