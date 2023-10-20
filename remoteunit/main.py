@@ -2,6 +2,7 @@ import tkinter as Tk
 from tkinter import ttk
 
 import screens as s
+import settings as cfg
 from communication import MQTTManager
 
 import matplotlib.pyplot as plt
@@ -51,6 +52,10 @@ def prevPage():
     pageframe.destroy()
     _makePage()
 
+samples: dict[str, dict[str, list[int]]] = {signal: {arr: [0
+                                                           for _ in range(int(sett['fsample']/sett['fpacket']))]
+                                                     for arr in ['new', 'old']}
+                                            for (signal, sett) in cfg.BIOSIGNALS.items()}
 
 window = Tk.Tk() # Create Tcl interpreter + main window
 window.title("Live Data Monitor")
@@ -65,8 +70,8 @@ footerframe.grid(row= 1, column= 0)
 
 # Initialize screens
 currentPage = 0
-screens = [s.Screen1(),
-           s.Screen2()]
+screens = [s.Screen1(samples),
+           s.Screen2(samples)]
 
 closebtn = ttk.Button(footerframe, text= "Quit", command= _quit).grid(row= 0, column= 0)
 prevpagebtn = ttk.Button(footerframe, text= "<--", command= prevPage)
