@@ -26,6 +26,12 @@ def _do_subscriptions(client: MQTTClient):
     print("[MQTT] . Subscribing to configuration topic...")
     client.subscribe(topic= cfg.MQTT_TOPIC_CFG, qos= 2)
 
+def _onDataMessage(client, userdata, msg):
+    pass
+
+def _onConfigMessage(client, userdata, msg):
+    pass
+
 
 def initMQTT() -> MQTTClient:
     def _onConnect(client, userdata, flags, rc):
@@ -45,6 +51,10 @@ def initMQTT() -> MQTTClient:
     print("[MQTT] Instatiating MQTT Client...")
     c = MQTTClient()
     c.on_connect = _onConnect
+    c.message_callback_add(sub= f"{cfg.MQTT_TOPIC_PREFIX}/+",
+                           callback= _onDataMessage)
+    c.message_callback_add(sub= cfg.MQTT_TOPIC_CFG,
+                           callback= _onConfigMessage)
 
     print(f"[MQTT] Connecting to broker {hostname}@{port}...")
     c.connect(host= hostname,
