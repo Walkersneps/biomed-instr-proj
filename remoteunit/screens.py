@@ -6,9 +6,22 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
+class Screen:
+    def __init__(self) -> None:
+        self.anim = None
+        self.canvas = None
 
-class Screen1:
+    def _animateFrame(self, _):
+        pass
 
+    def animate(self):
+        self.anim = FuncAnimation(plt.gcf(), self._animateFrame, interval= 16, blit= False, frames= [0, 1])
+    
+    def stop(self):
+        del self.anim
+        del self.canvas
+
+class Screen1(Screen):
     def build(self, container):
         print("build s1")
 
@@ -42,16 +55,8 @@ class Screen1:
         ax1.plot(self.x_vals, self.y_vals)
         ax2.plot(self.x_vals, self.y_vals2)
 
-    def animate(self):
-        self.anim = FuncAnimation(plt.gcf(), self._animateFrame, interval= 16, blit= False, frames= [0, 1])
-    
-    def stop(self):
-        del self.anim
-        del self.canvas
 
-
-class Screen2:
-
+class Screen2(Screen):
     def build(self, container):
         print("build s2")
 
@@ -81,10 +86,3 @@ class Screen2:
         ax1.cla()
         # Plot new data
         ax1.plot(self.x_vals, self.y_vals)
-
-    def animate(self):
-        self.anim = FuncAnimation(plt.gcf(), self._animateFrame, interval= 16, blit= False, frames= [0, 1])
-    
-    def stop(self):
-        del self.anim
-        del self.canvas
