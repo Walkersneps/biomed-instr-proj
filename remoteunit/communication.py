@@ -1,5 +1,6 @@
 import settings as cfg
 from paho.mqtt.client import Client as MQTTClient
+from paho.mqtt.client import MQTTMessage
 from json import dumps as jsondumps
 
 def _sendStartupData(client: MQTTClient):
@@ -26,11 +27,15 @@ def _do_subscriptions(client: MQTTClient):
     print("[MQTT] . Subscribing to configuration topic...")
     client.subscribe(topic= cfg.MQTT_TOPIC_CFG, qos= 2)
 
-def _onDataMessage(client, userdata, msg):
-    pass
+def _onDataMessage(client, userdata, msg: MQTTMessage):
+    global samples
+    signalName: str = msg.topic.removeprefix(f"{cfg.MQTT_TOPIC_PREFIX}")
+    print(f"Received data payload: {msg.payload}")
+    #samples[signalName]['old'] = samples[signalName]['new']
+    #samples[signalName]['new'] = msg.payload
 
-def _onConfigMessage(client, userdata, msg):
-    pass
+def _onConfigMessage(client, userdata, msg:MQTTMessage):
+    print(f"[MQTT] Got Config msg: {msg.payload}")
 
 
 def initMQTT() -> MQTTClient:
