@@ -41,7 +41,7 @@ class MQTTManager:
 
     def _onDataMessage(self, client, userdata, msg: MQTTMessage):
         signalName: str = msg.topic.removeprefix(f"{cfg.MQTT_TOPIC_PREFIX}")
-        print(f"Received data payload: {msg.payload}")
+        print(f"On signal {signalName}, Received data payload: {msg.payload}")
         #self.samples[signalName]['old'] = samples[signalName]['new']
         #self.samples[signalName]['new'] = msg.payload
 
@@ -58,7 +58,7 @@ class MQTTManager:
         print("[MQTT] Instatiating MQTT Client...")
         self.c = MQTTClient()
         self.c.on_connect = self._onConnect
-        self.c.message_callback_add(sub= f"{cfg.MQTT_TOPIC_PREFIX}/+",
+        self.c.message_callback_add(sub= f"{cfg.MQTT_TOPIC_PREFIX}+",
                             callback= self._onDataMessage)
         self.c.message_callback_add(sub= cfg.MQTT_TOPIC_CFG,
                             callback= self._onConfigMessage)
