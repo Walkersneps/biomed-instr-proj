@@ -41,16 +41,20 @@ class MQTTManager:
 
     def _onDataMessage(self, client, userdata, msg: MQTTMessage):
         signalName: str = msg.topic.removeprefix(f"{cfg.MQTT_TOPIC_PREFIX}")
-        print(f"On signal {signalName}, Received data payload: {msg.payload}")
-        #self.samples[signalName]['old'] = samples[signalName]['new']
-        #self.samples[signalName]['new'] = msg.payload
+        #print(f"On signal {signalName}, Received data payload: {msg.payload}")
+        self.samples[signalName]['old'] = self.samples[signalName]['new']
+        self.samples[signalName]['new'] = [int(smpl) for smpl in msg.payload.decode().replace('[', '').replace(']', '').split(', ')]
+        self.newData[signalName] = True
 
     def _onConfigMessage(self, client, userdata, msg:MQTTMessage):
         print(f"[MQTT] Got Config msg: {msg.payload}")
 
 
-    def __init__(self, samplesDict):
-        self.samples = samplesDict
+    def __init__(self,
+                 samplesDict: dict[str, dict[str, list[int]]],
+                 newData: dict[str, bool]):
+        self.samples: dict[str, dict[str, list[int]]] = samplesDict
+        self.newData: dict[str, bool] = newData
 
         hostname = cfg.MQTT_BROKER_ADDR
         port = cfg.MQTT_BROKER_PORT
@@ -65,6 +69,6 @@ class MQTTManager:
 
         print(f"[MQTT] Connecting to broker {hostname}@{port}...")
         self.c.connect(host= hostname,
-                port= port)
+                       port= port)
 
         
