@@ -1,13 +1,19 @@
-import settings as cfg
 from paho.mqtt.client import Client as MQTTClient
 from paho.mqtt.client import MQTTMessage
 from json import dumps as jsondumps
 
+import settings as cfg
+
 class MQTTManager:
+    """Acts as a proxy to handle the MQTT communication.
+    """
+
     def _sendStartupData(self):
+        """Sends the configuration data to the `proximalunit`.
+        """
         pl = {"MQTT_TOPIC_PREFIX": cfg.MQTT_TOPIC_PREFIX,
-            "BIOSIGNALS": cfg.BIOSIGNALS
-            }
+             "BIOSIGNALS": cfg.BIOSIGNALS
+             }
         pl = jsondumps(pl)
         print(f"[____] . Configuration string for proximal unit is: {pl}")
 
@@ -19,6 +25,8 @@ class MQTTManager:
                     )
         
     def _do_subscriptions(self):
+        """Subscribes to notable topics.
+        """
         print(f"[MQTT] . Subscribing to biosignals' topics...")
         for t in cfg.MQTT_TOPICS:
             self.c.subscribe(topic= t,
@@ -29,6 +37,8 @@ class MQTTManager:
         self.c.subscribe(topic= cfg.MQTT_TOPIC_CFG, qos= 2)
 
     def _onConnect(self, client, userdata, flags, rc):
+            """ Callback function for connection attempts. Checks the return code of the attempt.
+            """
             if rc == 0:
                 print("[MQTT] . Connection to MQTT broker was successful!")
                 print("[MQTT] Performing preliminary operations...")
@@ -40,19 +50,34 @@ class MQTTManager:
                 print (f"[MQTT] . ERROR: connection to broker failed with response code: {rc}.")
 
     def _onDataMessage(self, client, userdata, msg: MQTTMessage):
+        """Callback function for handling of incoming data messages.
+        This callback is invoked everytime a message is received in a subtopic of `MQTT_TOPIC_PREFIX`.
+        """
+
         signalName: str = msg.topic.removeprefix(f"{cfg.MQTT_TOPIC_PREFIX}")
         #print(f"On signal {signalName}, Received data payload: {msg.payload}")
-        self.samples[signalName]['old'] = self.samples[signalName]['new']
-        self.samples[signalName]['new'] = [int(smpl) for smpl in msg.payload.decode().replace('[', '').replace(']', '').split(', ')]
-        self.newData[signalName] = True
+        self.samples[signalName]['old'] = self.samples[signalName]['new'] # Store old data: may be needed if pkt was received before finishing plotting all samples of previous batch
+        self.samples[signalName]['new'] = [int(smpl) for smpl in msg.payload.decode().replace('[', '').replace(']', '').split(', ')] # Convert incoming `byte` data payload to `list[int]`
+        self.newData[signalName] = True # Notify that new data was received, for this specific signal
+
 
     def _onConfigMessage(self, client, userdata, msg:MQTTMessage):
+        """Callback function for handling of incoming configuration messages.
+        This callback is invoked everytime a message is received in topic `MQTT_TOPIC_CFG`.
+        """
         print(f"[MQTT] Got Config msg: {msg.payload}")
 
 
     def __init__(self,
                  samplesDict: dict[str, dict[str, list[int]]],
                  newData: dict[str, bool]):
+        """Creates an MQTTClient, configures it, and connects it to a broker.
+        The client itself will be accessible under class property `c`. 
+
+        Args:
+            samplesDict (dict[str, dict[str, list[int]]]): Reference to the dictionary holding all current and 1-step old sample packets, for each signal. Can be an empty dict.
+            newData (dict[str, bool]): Dictionary specifying, for each signal, if a new packet containing samples has arrived. Can be an empty dict.
+        """
         self.samples: dict[str, dict[str, list[int]]] = samplesDict
         self.newData: dict[str, bool] = newData
 
