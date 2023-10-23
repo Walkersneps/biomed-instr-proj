@@ -1,7 +1,7 @@
 import tkinter as Tk
 from tkinter import ttk
 
-import screens as s
+import pages
 import settings as cfg
 from communication import MQTTManager
 
@@ -71,8 +71,8 @@ footerframe.grid(row= 1, column= 0)
 
 # Initialize screens
 currentPage = 0
-screens = [s.Screen1(samples, newData),
-           s.Screen2(samples, newData)]
+screens = [pages.Page1(samples, newData),
+           pages.Page2(samples, newData)]
 
 closebtn = ttk.Button(footerframe, text= "Quit", command= _quit).grid(row= 0, column= 0)
 prevpagebtn = ttk.Button(footerframe, text= "<--", command= prevPage)

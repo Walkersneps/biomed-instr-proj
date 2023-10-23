@@ -9,7 +9,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 import settings as cfg
 
-class Screen:
+class BasePage:
     """Base class for a page of the health monitor.
     Each actual page can be defined as a subclass of `BasePage`.
 
@@ -114,7 +114,7 @@ class Screen:
 
 
 
-class Screen1(Screen):
+class Page1(BasePage):
     def build(self, container):
         print("build s1")
 
@@ -156,7 +156,7 @@ class Screen1(Screen):
                                     frames= linspace(0, 2*pi, 121))
 
 
-class Screen2(Screen):
+class Page2(BasePage):
     def build(self, container):
         print("build s2")
         self.frame = container # save parent container in object instance
