@@ -10,9 +10,20 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import settings as cfg
 
 class Screen:
+    """Base class for a page of the health monitor.
+    Each actual page can be defined as a subclass of `BasePage`.
+
+    Don't forget to implement function `_animateFrame(...)` specifically.
+    """
     def __init__(self,
                  samples: dict[str, dict[str, list[int]]],
                  newData: dict[str, bool]) -> None:
+        """Create new instance of a Page.
+
+        Args:
+            samples (dict[str, dict[str, list[int]]]): Reference to the dictionary holding all current and 1-step old sample packets, for each signal
+            newData (dict[str, bool]): Dictionary specifying, for each signal, if a new packet containing samples has arrived.
+        """
         self.anim = None
         self.canvas = None
         self.samples = samples
@@ -20,9 +31,22 @@ class Screen:
         self.totDataPoints = 120
 
     def _animateFrame(self, _):
+        """Defines the animation logic of the page.
+        Implement here plotting, etc...
+
+        Args:
+            _ (_type_): _description_
+        """
         pass
 
     def animate(self, refreshInterval: int= 100):
+        """Initialize and start animation of plots in this page.
+
+    The animation can be stopped by deleting the reference to property `anim`
+
+        Args:
+            refreshInterval (int): Interval between subsequent plottings [ms]. Defaults to 100.
+        """
         self.anim = FuncAnimation(fig= plt.gcf(),
                                   func= self._animateFrame,
                                   interval= refreshInterval,
@@ -30,10 +54,22 @@ class Screen:
                                   frames= range(self.totDataPoints))
     
     def stop(self):
+        """Stops the animation and removes canvas from memory.
+        Call `build(...)` and then `animate()` to reinitialize the regimen graphics state.
+        """
         del self.anim
         del self.canvas
 
     def sampleExtractor(self, signalName: str):
+        """Generates the next sample which needs plotting.
+        Internally handles the event of new sample packet.
+
+        Args:
+            signalName (str): The name of the signal
+
+        Yields:
+            int: The next sample which needs to be plotted 
+        """
         x = 0
         leftovers = False
         unplottedSamples = 0
