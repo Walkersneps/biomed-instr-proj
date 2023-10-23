@@ -18,23 +18,25 @@ class MQTTManager:
         print(f"[____] . Configuration string for proximal unit is: {pl}")
 
         print(f"[MQTT] . Sending configuration string @ topic {cfg.MQTT_TOPIC_CFG}...")
-        self.c.publish(topic= cfg.MQTT_TOPIC_CFG,
+        self._c.publish(topic= cfg.MQTT_TOPIC_CFG,
                     payload= pl,
                     qos= 1, # At least once
                     retain= True
                     )
         
+
     def _do_subscriptions(self):
         """Subscribes to notable topics.
         """
         print(f"[MQTT] . Subscribing to biosignals' topics...")
         for t in cfg.MQTT_TOPICS:
-            self.c.subscribe(topic= t,
+            self._c.subscribe(topic= t,
                              qos= 2 # exactly once
                             )
             print(f"[MQTT] . . Subscribed to topic: {t}")
         print("[MQTT] . Subscribing to configuration topic...")
-        self.c.subscribe(topic= cfg.MQTT_TOPIC_CFG, qos= 2)
+        self._c.subscribe(topic= cfg.MQTT_TOPIC_CFG, qos= 2)
+
 
     def _onConnect(self, client, userdata, flags, rc):
             """ Callback function for connection attempts. Checks the return code of the attempt.
@@ -48,6 +50,7 @@ class MQTTManager:
 
             else:
                 print (f"[MQTT] . ERROR: connection to broker failed with response code: {rc}.")
+
 
     def _onDataMessage(self, client, userdata, msg: MQTTMessage):
         """Callback function for handling of incoming data messages.
@@ -85,15 +88,23 @@ class MQTTManager:
         port = cfg.MQTT_BROKER_PORT
 
         print("[MQTT] Instatiating MQTT Client...")
-        self.c = MQTTClient()
-        self.c.on_connect = self._onConnect
-        self.c.message_callback_add(sub= f"{cfg.MQTT_TOPIC_PREFIX}+",
+        self._c = MQTTClient()
+        self._c.on_connect = self._onConnect
+        self._c.message_callback_add(sub= f"{cfg.MQTT_TOPIC_PREFIX}+",
                             callback= self._onDataMessage)
-        self.c.message_callback_add(sub= cfg.MQTT_TOPIC_CFG,
+        self._c.message_callback_add(sub= cfg.MQTT_TOPIC_CFG,
                             callback= self._onConfigMessage)
 
         print(f"[MQTT] Connecting to broker {hostname}@{port}...")
-        self.c.connect(host= hostname,
+        self._c.connect(host= hostname,
                        port= port)
 
+    @property
+    def c(self):
+        """The underlying MQTT Client managed by this instance of MQTTManager.
+
+        Returns:
+            paho.mqtt.client.Client: The MQTT Client.
+        """
+        return self._c
         
