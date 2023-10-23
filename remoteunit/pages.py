@@ -6,6 +6,7 @@ from numpy import sin, pi, linspace
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.lines import Line2D
 
 import settings as cfg
 
@@ -30,7 +31,7 @@ class BasePage:
         self.newData = newData
         self.totDataPoints = 120
 
-    def _animateFrame(self, _):
+    def _animateFrame(self, _) -> tuple[Line2D]:
         """Defines the animation logic of the page.
         Implement here plotting, etc...
 
@@ -50,8 +51,8 @@ class BasePage:
         self.anim = FuncAnimation(fig= plt.gcf(),
                                   func= self._animateFrame,
                                   interval= refreshInterval,
-                                  blit= False,
-                                  frames= range(self.totDataPoints))
+                                  blit= True,
+                                  frames= self.totDataPoints)
     
     def stop(self):
         """Stops the animation and removes canvas from memory.
@@ -127,6 +128,13 @@ class Page1(BasePage):
         plt.close()
         plt.gcf().subplots(2, 1)
 
+        # Get all axes of figure
+        ax1, ax2 = plt.gcf().get_axes()
+        ax1.set_ylim(bottom= -1.1, top= 1.1)
+        ax2.set_ylim(bottom= -0.1, top= 128.1)
+        self.g1, = ax1.plot(self.x_vals, self.y_vals)
+        self.g2, = ax2.plot(self.x_vals, self.y_vals2)
+
         # Draw GUI
         self.frame.grid()
         label = ttk.Label(self.frame, text= "Pagina 1").grid(column= 0, row= 0)
@@ -139,20 +147,25 @@ class Page1(BasePage):
         i = next(self.c)
         self.y_vals[i] = sin(t)
         self.y_vals2[i] = random.randint(0, 128)
-        # Get all axes of figure
-        ax1, ax2 = plt.gcf().get_axes()
+        
         # Clear current data
-        ax1.cla()
-        ax2.cla()
+        #self.ax1.cla()
+        #self.ax2.cla()
         # Plot new data
-        ax1.plot(self.x_vals, self.y_vals)
-        ax2.plot(self.x_vals, self.y_vals2)
+        #self.ax1.plot(self.x_vals, self.y_vals)
+        #self.ax2.plot(self.x_vals, self.y_vals2)
+
+        self.g1.set_ydata(self.y_vals)
+        self.g2.set_ydata(self.y_vals2)
+
+        return (self.g1, self.g2)
+
     
     def animate(self, refreshInterval: int = 100):
         self.anim = FuncAnimation(fig= plt.gcf(),
                                     func= self._animateFrame,
                                     interval= refreshInterval,
-                                    blit= False,
+                                    blit= True,
                                     frames= linspace(0, 2*pi, 121))
 
 
@@ -161,14 +174,13 @@ class Page2(BasePage):
         print("build s2")
         self.frame = container # save parent container in object instance
 
-        # Setup Plots
-        self.xdata = [i for i in range(self.totDataPoints)]
-        self.ecgLine, = plt.plot([])
-        self.ecgLine.set_xdata(self.xdata)
-        self.ecgData = [0 for i in self.xdata]
         plt.close()
         plt.gcf().subplots(1, 1)
         self.ax1 = plt.gcf().get_axes()[0]
+        self.xdata = [i for i in range(self.totDataPoints)]
+        self.ecgData = [0 for i in self.xdata]
+        self.ecgLine, = self.ax1.plot(self.xdata, self.ecgData)
+        self.ax1.set_ylim(bottom= -1000.1, top= 1000.1)
 
         # Draw GUI
         self.frame.grid() # Draw main container
@@ -179,12 +191,13 @@ class Page2(BasePage):
         # Define data sources
         self.ecgSample = self.sampleExtractor('ECG')
 
-    def _animateFrame(self, cursor):
+    def _animateFrame(self, cursor) -> tuple[Line2D]:
         nxt = next(self.ecgSample)
-        print(f'at frame {cursor}, extracted {nxt}')
+        #print(f'at frame {cursor}, extracted {nxt}')
         self.ecgData[cursor] = nxt
-        #self.ecgLine.set_ydata(self.ecgData)
+        self.ecgLine.set_ydata(self.ecgData)
+        return (self.ecgLine, )
         #plt.draw()
-        self.ax1.cla()
-        plt.plot(self.xdata, self.ecgData)
+        #self.ax1.cla()
+        #plt.plot(self.xdata, self.ecgData)
 
