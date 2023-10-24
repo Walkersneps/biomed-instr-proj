@@ -111,12 +111,12 @@ void _onMQTTSubscribe(uint16_t packetId, const espMqttClientTypes::SubscribeRetu
   Serial.println();
 }
 
-void _onOversizedMessage(const espMqttClientTypes::MessageProperties& props, const char* topic, const uint8_t* payload, size_t chunkSize, size_t index, ssize_t total) {
+void _onOversizedMessage(const espMqttClientTypes::MessageProperties& props, const char* topic, const uint8_t* payload, size_t chunkSize, size_t index, size_t total) {
   Serial.println("[MQTT] Got an oversized MQTT message. I can't handle that! :((");
 }
 
 /* Final arrival point of messages published to topic `MQTT_TOPIC_CONFIG`.*/
-void _onCompleteConfigMessage(const espMqttClientTypes::MessageProperties& props, const char* topic, const uint8_t* payload, size_t chunkSize, size_t index, ssize_t total) {
+void _onCompleteConfigMessage(const espMqttClientTypes::MessageProperties& props, const char* topic, const uint8_t* payload, size_t chunkSize, size_t index, size_t total) {
   Serial.println("[MQTT] Got Config message from remoteunit: ");
   // TODO: implement this
   /*
@@ -137,7 +137,7 @@ void _onCompleteConfigMessage(const espMqttClientTypes::MessageProperties& props
  * 
  * If the total size of the payload is higher than `maxPayloadSize`, function `_onOversizedMessage(...)` is called.
 */
-void _onConfigMessage(const espMqttClientTypes::MessageProperties& props, const char* topic, const uint8_t* payload, size_t chunkSize, size_t index, ssize_t total) {
+void _onConfigMessage(const espMqttClientTypes::MessageProperties& props, const char* topic, const uint8_t* payload, size_t chunkSize, size_t index, size_t total) {
   // payload is bigger then max --> call _onOversizedMessage() with the chunked message.
   if (total > maxPayloadSize) {
     _onOversizedMessage(props, topic, payload, chunkSize, index, total);
@@ -177,7 +177,7 @@ void _onConfigMessage(const espMqttClientTypes::MessageProperties& props, const 
  * Searches on the map `topicCallbacks` if a specific handler exist for the message's topic.
  * If no specific handler is found for the topic, a generic message is printed to Serial.
 */
-void _onMQTTMessage(const espMqttClientTypes::MessageProperties& props, const char* topic, const uint8_t* payload, size_t chunkSize, size_t index, ssize_t total) {
+void _onMQTTMessage(const espMqttClientTypes::MessageProperties& props, const char* topic, const uint8_t* payload, size_t chunkSize, size_t index, size_t total) {
   Serial.printf("[MQTT] Received publication on topic %s:\n", topic);
 
   auto it = topicCallbacks.find(topic);
