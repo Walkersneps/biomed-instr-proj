@@ -1,8 +1,11 @@
 #include <map>
+#include <unordered_map>
 #include <cstring>
+#include <string>
 #include <Arduino.h>
 #include <WiFi.h>
 #include <espMqttClientAsync.h>
+#include <ArduinoJson.h>
 
 // ## o-o-o-o SETTINGS o-o-o-o ##
 // ##############################
@@ -16,6 +19,7 @@
 #define MQTT_TOPIC_CONFIG "cfg"
 
 #define SERIAL_BAUDRATE 115200
+
 #define MAX_SIGNALS 5 // Maximum numbers of signals to be acquired
 
 // ###############################
@@ -33,6 +37,7 @@
 espMqttClientAsync mqttClient; // The actual MQTT Client instance
 bool needsMQTTreconnection = false;
 uint32_t timeOfLastReconnect = 0;
+uint32_t currentMillis;
 
 // Handling of big/batched MQTT messages
 const size_t maxPayloadSize = 8192; // Payloads with a total size exceeding this number will be discarded.
@@ -47,6 +52,7 @@ struct MatchTopic { // Defines how to look for a topic in the map `topicCallback
   }
 };
 std::map<const char*, espMqttClientTypes::OnMessageCallback, MatchTopic> topicCallbacks; // This map will store the couples {topicName -> callbackFunc}, allowing messages coming from different topics to be handled indipendently.
+
 // Operative Settings
 JsonDocument settings;
 //typedef std::unordered_map<std::string, uint8_t> Settings; // Defines a dictionary of type {`settingName`: `value`}
@@ -104,14 +110,14 @@ void connectToWiFi(const char* ssid, const char* pswd) {
 }
 
 void connectToMQTTBroker() {
-  Serial.print("[MAIN] Connecting to MQTT Broker... ");
+  Serial.print(F("[MAIN] Connecting to MQTT Broker... "));
   if (!mqttClient.connect()) { // Attempts connection. This `if` block will be executed if connection fails.
     needsMQTTreconnection = true;
     timeOfLastReconnect = millis();
-    Serial.println("\n[ERROR] . Connection attempt to MQTT broker failed.");
+    Serial.println(F("\n[ERROR] . Connection attempt to MQTT broker failed."));
   } else {
     needsMQTTreconnection = false;
-    Serial.println("Successful!");
+    Serial.println(F("Successful!"));
   }
 }
 
@@ -119,18 +125,18 @@ void WiFiEvent(WiFiEvent_t e) {
   Serial.printf("[WiFi] Got event: %d\n", e);
   switch (e) {
     case SYSTEM_EVENT_STA_GOT_IP: // Connection successful and wifi is ready
-      Serial.print("[WiFi] Connection successful!!\n[WiFi] IP Address is: ");
+      Serial.print(F("[WiFi] Connection successful!!\n[WiFi] IP Address is: "));
       Serial.println(WiFi.localIP());
       
       connectToMQTTBroker();
       break;
 
     case SYSTEM_EVENT_STA_DISCONNECTED:
-      Serial.println("[WiFi] [ERROR] WiFi connection has been lost!");
+      Serial.println(F("[WiFi] [ERROR] WiFi connection has been lost!"));
       break;
     
     default:
-      Serial.println("[WiFi] Unhandled event.");
+      Serial.println(F("[WiFi] Unhandled event."));
       break;
     }
 }
@@ -139,13 +145,13 @@ void WiFiEvent(WiFiEvent_t e) {
  * Performs subscriptions to topics and publishes a message to acknowledge its presence.
 */
 void _onMQTTConnect(bool sessionPresent) {
-  Serial.print("[MQTT] Connected to broker!\n[MQTT] Session present: ");
+  Serial.print(F("[MQTT] Connected to broker!\n[MQTT] Session present: "));
   Serial.println(sessionPresent);
 
   Serial.printf("[MQTT] Subscribing to Configuration channel `%s`...\n", MQTT_TOPIC_CONFIG);
   mqttClient.subscribe(MQTT_TOPIC_CONFIG, 2);
 
-  Serial.println("[MQTT] Publishing presence message...");
+  Serial.println(F("[MQTT] Publishing presence message..."));
   mqttClient.publish(MQTT_TOPIC_CONFIG, 2, false, "[proximalunit] Connected!");
 }
 
@@ -161,7 +167,7 @@ void _onMQTTDisconnect(espMqttClientTypes::DisconnectReason reason) {
 void _onMQTTSubscribe(uint16_t packetId, const espMqttClientTypes::SubscribeReturncode* retCodes, size_t len) {
   Serial.printf("[MQTT] Subscription(s) in packetID #%s was acknowledged, with QoS:\n       .");
   for (size_t i = 0; i < len; ++i) {
-    Serial.print(" qos: ");
+    Serial.print(F(" qos: "));
     Serial.print(static_cast<uint8_t>(retCodes[i]));
   }
   Serial.println();
@@ -252,7 +258,7 @@ void _onConfigMessage(const espMqttClientTypes::MessageProperties& props, const 
       payloadBufferSize = total;
       payloadBuffer = new (std::nothrow) uint8_t[payloadBufferSize];
       if (!payloadBuffer) {
-        Serial.print("[ERROR] Payload buffer couldn't be created to handle chunked msg! (Out of memory?)");
+        Serial.print(F("[ERROR] Payload buffer couldn't be created to handle chunked msg! (Out of memory?)"));
         return;
       }
     }
@@ -286,12 +292,9 @@ void _onMQTTMessage(const espMqttClientTypes::MessageProperties& props, const ch
   if (it != topicCallbacks.end()) { // `topic` was found in the map (aka I haven't searched for it past the map's own size)
     (it -> second)(props, topic, payload, chunkSize, index, total); // run the corresponding callback
   } else { // no callback was specified for this specific topic
-    Serial.println("       . I don't know what to do with this message hehehe ^_^");
+    Serial.println(F("       . I don't know what to do with this message hehehe ^_^"));
   }
 }
-
-
-
 
 
 
@@ -301,14 +304,14 @@ void setup() {
   topicCallbacks.emplace(MQTT_TOPIC_CONFIG, _onConfigMessage); // The callback which will handle incoming messages on topic 'cfg' is _onConfigMessage
 
   Serial.begin(SERIAL_BAUDRATE);
-  Serial.println("[SETUP] Hello! Setup in progress...");
+  Serial.println(F("[SETUP] Hello! Setup in progress..."));
 
-  Serial.println("[SETUP] Setupping WiFi settings...");
+  Serial.println(F("[SETUP] Setupping WiFi settings..."));
   WiFi.setAutoConnect(false);
   WiFi.setAutoReconnect(true);
   WiFi.onEvent(WiFiEvent);
 
-  Serial.println("[SETUP] Setupping MQTT Client...");
+  Serial.println(F("[SETUP] Setupping MQTT Client..."));
   // Event callbacks
   mqttClient.onConnect(_onMQTTConnect);
   mqttClient.onDisconnect(_onMQTTDisconnect);
@@ -319,8 +322,11 @@ void setup() {
 
   connectToWiFi(WIFI_SSID, WIFI_PSWD);
 
-  Serial.println("[SETUP] Done :-)");
-}
+  Serial.println(F("[SETUP] Done :-)"));
+} // end config()
+
+
+
 
 void loop() {
   // Check MQTT connection
@@ -329,5 +335,10 @@ void loop() {
     if ((currentMillis - timeOfLastReconnect) > 5000) {
       connectToMQTTBroker();
     }
-}
+  }
 
+
+
+
+
+} // end loop()
