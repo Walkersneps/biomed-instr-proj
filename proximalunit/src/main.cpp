@@ -16,10 +16,18 @@
 #define MQTT_TOPIC_CONFIG "cfg"
 
 #define SERIAL_BAUDRATE 115200
+#define MAX_SIGNALS 5 // Maximum numbers of signals to be acquired
 
 // ###############################
 // o-o-o-o END of SETTINGS o-o-o-o
 
+// Standard indexes for arrays
+// NB: none of those must exceed `MAX_SIGNALS - 1`!!!
+#define IDX_ECG 0
+#define IDX_PPG 1
+#define IDX_GSR 2
+#define IDX_TEMP 3
+#define IDX_RVOL 4
 
 // MQTT Management stuff
 espMqttClientAsync mqttClient; // The actual MQTT Client instance
@@ -43,6 +51,49 @@ std::map<const char*, espMqttClientTypes::OnMessageCallback, MatchTopic> topicCa
 JsonDocument settings;
 //typedef std::unordered_map<std::string, uint8_t> Settings; // Defines a dictionary of type {`settingName`: `value`}
 //std::unordered_map<std::string, Settings> signalSettings; // 2-level dict of type {`signalName`: {`settingName`: `value`}}
+
+// FreeRTOS Tasks handles
+TaskHandle_t* taskHandles[MAX_SIGNALS] = {nullptr}; // Stores handles pointing to created RTOS tasks
+
+
+// FreeRTOS Tasks
+void vTask_SampleECG(void *pvParameters) {
+  JsonObject config = *(JsonObject *)pvParameters;
+  const int fsample = config["fsample"].as<int>();
+  const int overlay = config["overlay"].as<int>();
+  const int npacket = config["npacket"].as<int>();
+  const bool dataOk = (fsample && overlay && npacket);
+  if (!dataOk) Serial.println(F("[ERROR] Uncastable settings for ECG!!"));
+
+  static int* samples;
+  samples = (int*)pvPortMalloc(npacket * sizeof(int));
+  int sampleIndex = 0;
+
+  const TickType_t samplePeriod = pdMS_TO_TICKS(int(1000 / fsample));
+  Serial.printf("[ECG] A sample will be acquired every %d ms, aka every %d ticks.\n", pdTICKS_TO_MS(samplePeriod), samplePeriod);
+  BaseType_t xWasDelayed;
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+
+  while (dataOk) {
+    xWasDelayed = xTaskDelayUntil(&xLastWakeTime, samplePeriod);
+
+    // TODO: implement overlay!
+    // TODO: acquire sample
+    samples[sampleIndex] = 0;
+    sampleIndex++;
+
+    if (xWasDelayed == pdTRUE) Serial.println(F("[ECG] ! Sampling was delayed!"));
+
+    if (sampleIndex >= npacket) {
+      // TODO: send via mqtt
+      sampleIndex = 0;
+    }
+
+  }
+
+  // TODO: !!! ensure this is run also on task deletion !!!
+  vPortFree(samples);
+}
 
 
 
@@ -117,7 +168,32 @@ void _onMQTTSubscribe(uint16_t packetId, const espMqttClientTypes::SubscribeRetu
 }
 
 void _onOversizedMessage(const espMqttClientTypes::MessageProperties& props, const char* topic, const uint8_t* payload, size_t chunkSize, size_t index, size_t total) {
-  Serial.println("[MQTT] Got an oversized MQTT message. I can't handle that! :((");
+  Serial.println(F("[MQTT] Got an oversized MQTT message. I can't handle that! :(("));
+}
+
+void applySignalsSettings(const JsonObject signals) {
+  // Delete old tasks
+  // TODO: ensure they have freed their malloc()'ed memory!!
+  for (int i = 0; i < MAX_SIGNALS; i++)
+    if (taskHandles[i])
+      vTaskDelete(taskHandles[i]);
+
+  // Cycle through signals in the settings dict and start the corresponding sampling task for each
+  for (JsonPair pair: signals) { // See the same iterator implemented in `_onCompleteConfigMessage(...)` for details
+    const char* signalName = pair.key().c_str();
+    static JsonObject sett = pair.value().as<JsonObject>();
+
+    if (!strcmp(signalName, "ECG")) {
+      Serial.println(F("[MAIN] Creating freeRTOS task for ECG..."));
+      xTaskCreatePinnedToCore(vTask_SampleECG, "task_ECG", 2048, &sett, 10, taskHandles[IDX_ECG], APP_CPU_NUM);
+    } else if (!strcmp(signalName, "PPG")) {
+      Serial.println(F("[MAIN] Creating freeRTOS task for PPG..."));
+      //xTaskCreatePinnedToCore(vTask_SamplePPG, "task_PPG", 2048, &sett, 10, taskHandles[IDX_ECG], APP_CPU_NUM);
+    } else {
+      Serial.printf("[MAIN] Signal `%s` unknown. Can't proceed.\n", signalName);
+    }
+  }
+    
 }
 
 /* Final arrival point of messages published to topic `MQTT_TOPIC_CONFIG`.*/
