@@ -53,9 +53,9 @@ def prevPage():
     _makePage()
 
 samples: dict[str, dict[str, list[int]]] = {signal: {arr: [0
-                                                           for _ in range(int(sett['fsample']/sett['fpacket']))]
+                                                           for _ in range(cfg.PACKET_SIZES[signal])]
                                                      for arr in ['new', 'old']}
-                                            for (signal, sett) in cfg.BIOSIGNALS.items()}
+                                            for signal in cfg.BIOSIGNALS}
 newData: dict[str, bool] = {signal: False for signal in cfg.BIOSIGNALS}
 
 window = Tk.Tk() # Create Tcl interpreter + main window

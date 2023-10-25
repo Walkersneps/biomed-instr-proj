@@ -11,8 +11,9 @@ class MQTTManager:
     def _sendStartupData(self):
         """Sends the configuration data to the `proximalunit`.
         """
-        pl = {"MQTT_TOPIC_PREFIX": cfg.MQTT_TOPIC_PREFIX,
-             "BIOSIGNALS": cfg.BIOSIGNALS
+        pl = {
+              "MQTT_TOPIC_PREFIX": cfg.MQTT_TOPIC_PREFIX,
+              "BIOSIGNALS": cfg.BIOSIGNALS
              }
         pl = jsondumps(pl)
         print(f"[____] . Configuration string for proximal unit is: {pl}")

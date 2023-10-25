@@ -1,12 +1,12 @@
 # o-o-o-o ACQUISITION SYSTEM SETTINGS o-o-o-o #
 # NB!!! Make sure that 'fsample' is an integer multiple of 'fpacket' !!!
-BIOSIGNALS: dict[str, dict[str, int]] = {"ECG": {"fsample": 300,
-                                                 "fpacket": 4,
-                                                 "overlay": 10
+BIOSIGNALS: dict[str, dict[str, float]] = {"ECG": {"fsample": 10,
+                                                 "fpacket": 0.5,
+                                                 "overlay": 20
                                                 },
                                          "PPG": {"fsample": 300,
-                                                 "fpacket": 4,
-                                                 "overlay": 10}
+                                                 "fpacket": 2,
+                                                 "overlay": 30}
                                          #"GSR"
                                         }
 
@@ -27,3 +27,8 @@ MQTT_TOPIC_PREFIX: str = "signal/" # common prefix of the topics on which proxim
 MQTT_TOPICS: list[str] = [f"{MQTT_TOPIC_PREFIX}{biosig}" for biosig in BIOSIGNALS]
 PACKET_SIZES: dict[str, int] = {signal: int(props['fsample']/props['fpacket']) for signal, props in BIOSIGNALS.items()}
 OVERLAY_SIZES: dict[str, int] = {signal: int(props['overlay']) for signal, props in BIOSIGNALS.items()}
+
+FRAMERATE_PLOT: dict[str, int] = {signal: int((PACKET_SIZES[signal] - (3*OVERLAY_SIZES[signal]/4)) * props['fpacket']) for signal, props in BIOSIGNALS.items()}  #(packet_size - overlay) * fpacket = [samplesToPlot/packet] * [packets/sec] = [samplesToPlot/sec]
+#FRAMERATE_PLOT: dict[str, int] = {signal: int(PACKET_SIZES[signal] * props['fpacket']) for signal, props in BIOSIGNALS.items()}
+PERIOD_PLOT: dict[str, int] = {signal: int((1/framerate) * 1000) for signal, framerate in FRAMERATE_PLOT.items()} # [ms]
+print(PERIOD_PLOT['ECG'])
