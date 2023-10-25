@@ -247,6 +247,11 @@ void setup() {
 }
 
 void loop() {
-  static uint32_t currentMillis = millis();
-  if (needsMQTTreconnection && (currentMillis - timeOfLastReconnect) > 5000) { connectToMQTTBroker(); }
+  // Check MQTT connection
+  if (needsMQTTreconnection) {
+    currentMillis = millis();
+    if ((currentMillis - timeOfLastReconnect) > 5000) {
+      connectToMQTTBroker();
+    }
 }
+
