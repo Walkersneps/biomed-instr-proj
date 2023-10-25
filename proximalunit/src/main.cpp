@@ -39,6 +39,11 @@ struct MatchTopic { // Defines how to look for a topic in the map `topicCallback
   }
 };
 std::map<const char*, espMqttClientTypes::OnMessageCallback, MatchTopic> topicCallbacks; // This map will store the couples {topicName -> callbackFunc}, allowing messages coming from different topics to be handled indipendently.
+// Operative Settings
+JsonDocument settings;
+//typedef std::unordered_map<std::string, uint8_t> Settings; // Defines a dictionary of type {`settingName`: `value`}
+//std::unordered_map<std::string, Settings> signalSettings; // 2-level dict of type {`signalName`: {`settingName`: `value`}}
+
 
 
 
@@ -117,14 +122,35 @@ void _onOversizedMessage(const espMqttClientTypes::MessageProperties& props, con
 
 /* Final arrival point of messages published to topic `MQTT_TOPIC_CONFIG`.*/
 void _onCompleteConfigMessage(const espMqttClientTypes::MessageProperties& props, const char* topic, const uint8_t* payload, size_t chunkSize, size_t index, size_t total) {
-  Serial.println("[MQTT] Got Config message from remoteunit: ");
-  // TODO: implement this
-  /*
-  for (size_t i = 0; i < chunkSize; ++i) {
-    Serial.printf()
+  Serial.println(F("[MQTT] Got Config message from remoteunit: "));
+
+  // Transform the char array to an actual null-terminated c-string
+  char* strval = new char[chunkSize + 1];
+  memcpy(strval, payload, chunkSize);
+  strval[chunkSize] = '\0';
+  Serial.println(strval);
+
+  DeserializationError err = deserializeJson(settings, strval);
+  delete[] strval;
+
+  if (err) {
+    Serial.print(F("[JSON] ERROR: Deserialization error: "));
+    Serial.print(err.f_str());
+    Serial.println(F("\nAborting interpretation of this message"));
+    return;
   }
-  Serial.println()
-  */
+
+  const char* config_topic = settings["MQTT_TOPIC_PREFIX"];
+  JsonObject json = settings.as<JsonObject>(); // Get smart object reference
+  for (JsonPair pair: json) {
+    /* Each JsonPair contains:
+     * JsonPair::key() -> JsonString
+     * JsonPair::value() -> JsonVariant
+    */
+    if (!strcmp(pair.key().c_str(), "BIOSIGNALS")) {
+      applySignalsSettings(pair.value().as<JsonObject>());
+    }
+  }
 }
 
 /* Handler for messages received on `MQTT_TOPIC_CONFIG`.
