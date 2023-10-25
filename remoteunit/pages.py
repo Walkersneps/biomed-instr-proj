@@ -33,14 +33,14 @@ class BasePage:
 
     def _animateFrame(self, _) -> tuple[Line2D]:
         """Defines the animation logic of the page.
-        Implement here plotting, etc...
+        Override this function to implement plotting, etc...
 
         Args:
             _ (_type_): _description_
         """
-        pass
+        return (Line2D([], []),)
 
-    def animate(self, refreshInterval: int= 100):
+    def animate(self, refreshInterval: int= cfg.PERIOD_PLOT['ECG']):
         """Initialize and start animation of plots in this page.
 
     The animation can be stopped by deleting the reference to property `anim`
@@ -104,7 +104,7 @@ class BasePage:
                         x += 1
                     self.newData[signalName] = False
                 else: # no new data packet received
-                    if x < (self.totDataPoints - 1):
+                    if x < (cfg.PACKET_SIZES[signalName] - 1):
                         yield self.samples[signalName]['new'][x]
                         x += 1
                     else: # aka: x==(totDataPoints-1). NB: that should never happen, bc due to sample frames overlapping, I should have received new data well before running out of samples.
