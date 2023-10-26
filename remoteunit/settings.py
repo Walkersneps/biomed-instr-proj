@@ -1,13 +1,26 @@
 # o-o-o-o ACQUISITION SYSTEM SETTINGS o-o-o-o #
 # NB!!! Make sure that 'fsample' is an integer multiple of 'fpacket' !!!
-BIOSIGNALS: dict[str, dict[str, float]] = {"ECG": {"fsample": 10,
-                                                 "fpacket": 0.5,
-                                                 "overlay": 20
+BIOSIGNALS: dict[str, dict[str, float]] = {"ECG": {
+                                                   "fsample": 10,
+                                                   "fpacket": 0.5,
+                                                   "overlay": 20,
+                                                   "npacket": 200,
+                                                   "priority": 10
                                                 },
-                                         "PPG": {"fsample": 300,
-                                                 "fpacket": 2,
-                                                 "overlay": 30}
-                                         #"GSR"
+                                           "PPG": {
+                                                   "fsample": 300,
+                                                   "fpacket": 2,
+                                                   "overlay": 30,
+                                                   "npacket": 100,
+                                                   "priority": 10
+                                                },
+                                           "TMP": {
+                                                   "fsample": 0.5,
+                                                   "npacket": 5,
+                                                   "overlay": 1,
+                                                   "priority": 5
+                                                }
+                                          #"GSR"
                                         }
 
 # o-o-o-o MQTT SETTINGS #
