@@ -4,6 +4,23 @@ from json import dumps as jsondumps
 
 import settings as cfg
 
+
+def payloadToList(payload: bytes | bytearray):
+    """Converts an MQTT payload to `list[int]`
+
+    Parameters
+    ----------
+    payload : bytes | bytearray
+        The payload as received by the MQTT handler.
+
+    Returns
+    -------
+    list(int)
+        A List object holding the converted data.
+    """
+    return [int(smpl) for smpl in payload.decode().replace('[', '').replace(']', '').split(', ')]
+
+
 class MQTTManager:
     """Acts as a proxy to handle the MQTT communication.
     """
@@ -61,7 +78,7 @@ class MQTTManager:
         signalName: str = msg.topic.removeprefix(f"{cfg.MQTT_TOPIC_PREFIX}")
         #print(f"On signal {signalName}, Received data payload: {msg.payload}")
         self.samples[signalName]['old'] = self.samples[signalName]['new'] # Store old data: may be needed if pkt was received before finishing plotting all samples of previous batch
-        self.samples[signalName]['new'] = [int(smpl) for smpl in msg.payload.decode().replace('[', '').replace(']', '').split(', ')] # Convert incoming `byte` data payload to `list[int]`
+        self.samples[signalName]['new'] = payloadToList(msg.payload)
         self.newData[signalName] = True # Notify that new data was received, for this specific signal
 
 
