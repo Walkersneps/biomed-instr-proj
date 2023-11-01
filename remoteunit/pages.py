@@ -75,13 +75,16 @@ class BasePage:
         leftovers = False
         unplottedSamples = 0
 
+        overlay = cfg.OVERLAY_SIZES[signalName]
+        pktsize = cfg.PACKET_SIZES[signalName]
+
         while True:
             #print(self.samples)
             #print(signalName)
             if leftovers:
                 if self.newData[signalName] is True:
                     print(f"[WARN] Fatal: I'm plotting data way slower than I'm receiving it! Samples are being lost!!")
-                if unplottedSamples > cfg.OVERLAY_SIZES[signalName]: # I'm still consuming the backlog
+                if unplottedSamples > overlay: # I'm still consuming the backlog
                     yield self.samples[signalName]['old'][x]
                     x += 1
                     unplottedSamples -= 1
@@ -92,19 +95,19 @@ class BasePage:
                     x += 1
             else: # no leftovers
                 if self.newData[signalName] is True: # just received a new data packet --> the series I was reading is now in the 'old' array, while new data is the 'new' array
-                    unplottedSamples = cfg.PACKET_SIZES[signalName] - x
-                    if unplottedSamples > cfg.OVERLAY_SIZES[signalName]: # Data packet arrived earlier than expected --> I have leftovers sample to use from old array
+                    unplottedSamples = pktsize - x
+                    if unplottedSamples > overlay: # Data packet arrived earlier than expected --> I have leftovers sample to use from old array
                         leftovers = True
                         yield self.samples[signalName]['old'][x]
                         x += 1
                         unplottedSamples -= 1
                     else: # Good situation: data packet arrived while I was plotting overlayed data
-                        x = cfg.OVERLAY_SIZES[signalName] - unplottedSamples
+                        x = overlay - unplottedSamples
                         yield self.samples[signalName]['new'][x]
                         x += 1
                     self.newData[signalName] = False
                 else: # no new data packet received
-                    if x < (cfg.PACKET_SIZES[signalName] - 1):
+                    if x < (pktsize - 1):
                         yield self.samples[signalName]['new'][x]
                         x += 1
                     else: # aka: x==(totDataPoints-1). NB: that should never happen, bc due to sample frames overlapping, I should have received new data well before running out of samples.
