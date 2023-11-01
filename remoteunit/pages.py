@@ -73,6 +73,7 @@ class BasePage:
         """
         x = 0
         leftovers = False
+        outOfSamples = True
         unplottedSamples = 0
 
         overlay = cfg.OVERLAY_SIZES[signalName]
@@ -84,6 +85,7 @@ class BasePage:
             if leftovers:
                 if self.newData[signalName] is True:
                     print(f"[WARN] Fatal: I'm plotting data way slower than I'm receiving it! Samples are being lost!!")
+                    # TODO: handle this
                 if unplottedSamples > overlay: # I'm still consuming the backlog
                     yield self.samples[signalName]['old'][x]
                     x += 1
@@ -93,10 +95,14 @@ class BasePage:
                     leftovers = False
                     yield self.samples[signalName]['new'][0]
                     x += 1
+                    
             else: # no leftovers
                 if self.newData[signalName] is True: # just received a new data packet --> the series I was reading is now in the 'old' array, while new data is the 'new' array
                     unplottedSamples = pktsize - x
-                    if unplottedSamples > overlay: # Data packet arrived earlier than expected --> I have leftovers sample to use from old array
+                    if x == 0: # That's either the first pkt we got, or we had already consumed all samples in the previous pkt (and x was set to 0 after yielding the last sample in that batch)
+                        yield self.samples[signalName]['new'][0]
+                        x += 1
+                    elif unplottedSamples > overlay: # Data packet arrived earlier than expected --> I have leftovers sample to use from old array
                         leftovers = True
                         yield self.samples[signalName]['old'][x]
                         x += 1
@@ -106,14 +112,19 @@ class BasePage:
                         yield self.samples[signalName]['new'][x]
                         x += 1
                     self.newData[signalName] = False
+                    outOfSamples = False
+
                 else: # no new data packet received
-                    if x < (pktsize - 1):
+                    if outOfSamples:
+                        yield 0
+                    elif x < (pktsize - 1):
                         yield self.samples[signalName]['new'][x]
                         x += 1
                     else: # aka: x==(totDataPoints-1). NB: that should never happen, bc due to sample frames overlapping, I should have received new data well before running out of samples.
                         print(f"[WARN] A data packet of {signalName} is late!")
                         yield self.samples[signalName]['new'][x]
                         x = 0
+                        outOfSamples = True
 
 
 
