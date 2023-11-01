@@ -120,12 +120,12 @@ void vTask_SampleBiosignal(void *pvParameters) {
     }
 
     if (sampleIndex >= npacket) { // A packet is completeley filled and ready to be sent
-      mqttClient.publish("", 2, false, samples, npacket); // Per library docs, espMqttClient::publish(...) should buffer the payload --> ve don't need to worry about overwriting it before it is completely transmitted
+      mqttClient.publish("", 2, false, samples, npacket); // Per library docs, espMqttClient::publish(...) should buffer the payload --> we don't need to worry about overwriting it before it is completely transmitted
       
       // Bring back the overlayed samples
       sampleIndex = 0;
       for (uint8_t i = overlay; i > 0; i--) {
-        samples[sampleIndex] = samples[npacket - overlay];
+        samples[sampleIndex] = samples[npacket - i];
         sampleIndex++;
       }
     }
