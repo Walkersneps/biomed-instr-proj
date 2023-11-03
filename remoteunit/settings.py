@@ -18,7 +18,8 @@ BIOSIGNALS: dict[str, dict[str, float]] = {"ECG": {
                                                    "fsample": 0.5,
                                                    "npacket": 5,
                                                    "overlay": 1,
-                                                   "priority": 5
+                                                   "priority": 5,
+                                                   "fpacket": 2
                                                 }
                                           #"GSR"
                                         }
