@@ -18,7 +18,9 @@ class BasePage:
     """
     def __init__(self,
                  samples: dict[str, dict[str, list[int]]],
-                 newData: dict[str, bool]) -> None:
+                 newData: dict[str, bool],
+                 pageTitle: str = "Generic Page"
+                ) -> None:
         """Create new instance of a Page.
 
         Args:
@@ -29,6 +31,7 @@ class BasePage:
         self.canvas = None
         self.samples = samples
         self.newData = newData
+        self.title = pageTitle
         self.totDataPoints = 120
 
     def _animateFrame(self, _) -> tuple[Line2D]:
@@ -95,7 +98,7 @@ class BasePage:
                     leftovers = False
                     yield self.samples[signalName]['new'][0]
                     x += 1
-                    
+
             else: # no leftovers
                 if self.newData[signalName] is True: # just received a new data packet --> the series I was reading is now in the 'old' array, while new data is the 'new' array
                     unplottedSamples = pktsize - x
@@ -126,20 +129,37 @@ class BasePage:
                         x = 0
                         outOfSamples = True
 
+    def build(self, container: ttk.Frame):
+        """Builds the main graphical elements of the page.
+        Each subclass should implement its own `build()` method, to define the actual content of the page.
+
+        Parameters
+        ----------
+        container : tkinter.Frame
+            Frame element which will be used as parent for each widget belonging to the page.
+        """
+        print(f"Building page '{self.title}'")
+        self.frame = container # save parent container in object instance
+
+        plt.close() # Close any old figures
+
+        # Draw GUI
+        self.frame.grid() # Draw main container
+        label = ttk.Label(self.frame, text= self.title).grid(column= 0, row= 0) # Draw label
+        self.canvas = FigureCanvasTkAgg(plt.gcf(), master= self.frame) # instantiate matplotlib canvas...
+        self.canvas.get_tk_widget().grid(column= 0, row= 1) # ... and draw it
 
 
 
 class Page1(BasePage):
     def build(self, container):
-        print("build s1")
+        super().build(container)
 
-        self.frame = container
         # Setup Plots
         self.x_vals = [t for t in range(0, 121)]
         self.y_vals = [0 for t in range(0, len(self.x_vals))]
         self.y_vals2 = [val for val in self.y_vals]
         self.c = cycle(self.x_vals)
-        plt.close()
         plt.gcf().subplots(2, 1)
 
         # Get all axes of figure
@@ -148,13 +168,6 @@ class Page1(BasePage):
         ax2.set_ylim(bottom= -0.1, top= 128.1)
         self.g1, = ax1.plot(self.x_vals, self.y_vals)
         self.g2, = ax2.plot(self.x_vals, self.y_vals2)
-
-        # Draw GUI
-        self.frame.grid()
-        label = ttk.Label(self.frame, text= "Pagina 1").grid(column= 0, row= 0)
-
-        self.canvas = FigureCanvasTkAgg(plt.gcf(), master= self.frame)
-        self.canvas.get_tk_widget().grid(column= 0, row= 1)
 
     def _animateFrame(self, t):
         # Generate values
@@ -185,10 +198,8 @@ class Page1(BasePage):
 
 class Page2(BasePage):
     def build(self, container):
-        print("build s2")
-        self.frame = container # save parent container in object instance
+        super().build(container)
 
-        plt.close()
         plt.gcf().subplots(1, 1)
         self.ax1 = plt.gcf().get_axes()[0]
         self.xdata = [i for i in range(self.totDataPoints)]
@@ -196,14 +207,9 @@ class Page2(BasePage):
         self.ecgLine, = self.ax1.plot(self.xdata, self.ecgData)
         self.ax1.set_ylim(bottom= -1000.1, top= 1000.1)
 
-        # Draw GUI
-        self.frame.grid() # Draw main container
-        label = ttk.Label(self.frame, text= "Pagina 2").grid(column= 0, row= 0) # Draw label
-        self.canvas = FigureCanvasTkAgg(plt.gcf(), master= self.frame) # instantiate matplotlib canvas...
-        self.canvas.get_tk_widget().grid(column= 0, row= 1) # ... and draw it
-
         # Define data sources
         self.ecgSample = self.sampleExtractor('ECG')
+
 
     def _animateFrame(self, cursor) -> tuple[Line2D]:
         nxt = next(self.ecgSample)

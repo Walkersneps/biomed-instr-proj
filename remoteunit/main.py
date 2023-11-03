@@ -71,8 +71,8 @@ footerframe.grid(row= 1, column= 0)
 
 # Initialize screens
 currentPage = 0
-screens = [pages.Page1(samples, newData),
-           pages.Page2(samples, newData)]
+screens = [pages.Page1(samples, newData, "1st Page"),
+           pages.Page2(samples, newData, "2nd Page")]
 
 closebtn = ttk.Button(footerframe, text= "Quit", command= _quit).grid(row= 0, column= 0)
 prevpagebtn = ttk.Button(footerframe, text= "<--", command= prevPage)
