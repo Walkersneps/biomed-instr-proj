@@ -14,7 +14,7 @@ class BasePage:
     """Base class for a page of the health monitor.
     Each actual page can be defined as a subclass of `BasePage`.
 
-    Don't forget to implement function `_animateFrame(...)` specifically.
+    Don't forget to implement functions `_animateFrame(...)` and `build(...)` specifically.
     """
     def __init__(self,
                  samples: dict[str, dict[str, list[int]]],
@@ -135,7 +135,7 @@ class BasePage:
 
         Parameters
         ----------
-        container : tkinter.Frame
+        container : tkinter.ttk.Frame
             Frame element which will be used as parent for each widget belonging to the page.
         """
         print(f"Building page '{self.title}'")
