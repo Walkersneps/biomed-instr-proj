@@ -39,6 +39,7 @@ espMqttClientAsync mqttClient; // The actual MQTT Client instance
 bool needsMQTTreconnection = false;
 uint32_t timeOfLastReconnect = 0;
 uint32_t currentMillis;
+char topicPrefix[10];
 
 // Handling of big/batched MQTT messages
 const size_t maxPayloadSize = 8192; // Payloads with a total size exceeding this number will be discarded.
@@ -82,6 +83,17 @@ void vTask_SampleBiosignal(void *pvParameters) {
   const int overlay = config["overlay"].as<int>();
   const int npacket = config["npacket"].as<int>();
   const char* signalName = config["signalName"].as<const char*>();
+
+  // Build full topic name
+  char fullTopic[strlen(topicPrefix) + 3];
+  uint8_t j = 0;
+  for (size_t i = 0; i < strlen(topicPrefix); i++)
+    fullTopic[i] = topicPrefix[i];
+  for (size_t i = strlen(topicPrefix); i < strlen(topicPrefix) + 4; i++) { // 3 chars for the signal name + 1 for the null string terminator
+    fullTopic[i] = signalName[j];
+    j++;
+  }
+  
 
   // Recover the correct acquisition function for this signal
   AcquisitionFunction acquireSample = nullptr;
@@ -257,9 +269,11 @@ void _onCompleteConfigMessage(const espMqttClientTypes::MessageProperties& props
     return;
   }
 
-  const char* config_topic = settings["MQTT_TOPIC_PREFIX"];
+  // Save signals topic prefix
+  strcpy(topicPrefix, settings["MQTT_TOPIC_PREFIX"].as<const char*>());
+
   JsonObject json = settings.as<JsonObject>(); // Get smart object reference
-  for (JsonPair pair: json) {
+  for (JsonPair pair: json) { // Look for the `BIOSIGNALS` field, which contains settings for each signal
     /* Each JsonPair contains:
      * JsonPair::key() -> JsonString
      * JsonPair::value() -> JsonVariant
