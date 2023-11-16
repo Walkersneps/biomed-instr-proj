@@ -342,7 +342,7 @@ uint8_t MAX86150::readPartID() {
 
 // Setup the sensor
 void MAX86150::setup(byte powerLevel, byte sampleAverage, byte ledMode, int sampleRate, int pulseWidth, int adcRange) {
-  activeDevices=3;
+  activeDevices = 3;
   writeRegister8(_i2caddr,MAX86150_SYSCONTROL,0x01);
   delay(100);
   writeRegister8(_i2caddr,MAX86150_FIFOCONFIG,0x7F);
@@ -525,7 +525,7 @@ void MAX86150::nextSample(void)
 //Returns number of new samples obtained
 uint16_t MAX86150::check(void)
 {
-  //Read register FIDO_DATA in (3-byte * number of active LED) chunks
+  //Read register FIFO_DATA in (3-byte * number of active LED) chunks
   //Until FIFO_RD_PTR = FIFO_WR_PTR
 
   byte readPointer = getReadPointer();
@@ -586,7 +586,7 @@ uint16_t MAX86150::check(void)
         //Convert array to long
         memcpy(&tempLong, temp, sizeof(tempLong));
 
-				tempLong &= 0x7FFFF; //Zero out all but 18 bits
+				tempLong &= 0x7FFFF; //Zero out all but 19 bits
 
         sense.red[sense.head] = tempLong; //Store this reading into the sense array
 
@@ -601,7 +601,7 @@ uint16_t MAX86150::check(void)
           //Convert array to long
           memcpy(&tempLong, temp, sizeof(tempLong));
 					//Serial.println(tempLong);
-				  tempLong &= 0x7FFFF; //Zero out all but 18 bits
+				  tempLong &= 0x7FFFF; //Zero out all but 19 bits
 
 				  sense.IR[sense.head] = tempLong;
         }
@@ -619,7 +619,7 @@ uint16_t MAX86150::check(void)
           //Convert array to long
           memcpy(&tempLongSigned, temp, sizeof(tempLongSigned));
 
-		  		//tempLong &= 0x3FFFF; //Zero out all but 18 bits
+		  		//tempLong &= 0x3FFFF; //Zero out all but 18 bits (Not needed bc ECG `don't care` bits are already set to 0 by the MAX86150)
 
           sense.ecg[sense.head] = tempLongSigned;
         }
