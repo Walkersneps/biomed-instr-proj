@@ -28,11 +28,11 @@
 
 // Standard indexes for arrays
 // NB: none of those must exceed `MAX_SIGNALS - 1`!!!
-#define IDX_ECG 0
-#define IDX_PPG 1
-#define IDX_GSR 2
-#define IDX_TEMP 3
-#define IDX_RVOL 4
+#define IDX_ECG 0 // ElectroCardioGram
+#define IDX_PPG 1 // PhotoPletismoGram
+#define IDX_GSR 2 // Galvanic Skin Response
+#define IDX_TMP 3 // TeMPerature
+#define IDX_RVL 4 // Respiratory VoLume
 
 // MQTT Management stuff
 espMqttClientAsync mqttClient; // The actual MQTT Client instance
@@ -70,7 +70,7 @@ const std::unordered_map<std::string, uint8_t> taskHandleIndexes = { // Matches 
   {"ECG", IDX_ECG},
   {"PPG", IDX_PPG},
   {"GSR", IDX_GSR},
-  {"TMP", IDX_TEMP}
+  {"TMP", IDX_TMP}
 };
 
 
