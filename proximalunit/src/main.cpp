@@ -6,7 +6,10 @@
 #include <WiFi.h>
 #include <espMqttClientAsync.h>
 #include <ArduinoJson.h>
+#include <max86150.h>
 #include <BiosignalsAcquisition.h>
+#include <SensorsInitializations.h>
+#include <sharedObjects.h>
 
 // ## o-o-o-o SETTINGS o-o-o-o ##
 // ##############################
@@ -56,11 +59,13 @@ struct MatchTopic { // Defines how to resolve an MQTT topic match.
 std::map<const char*, espMqttClientTypes::OnMessageCallback, MatchTopic> topicCallbacks; // This map will store the couples {topicName -> callbackFunc}, allowing messages coming from different topics to be handled indipendently.
 
 // Signal-AcquisitionFunction pairing
-typedef std::function<uint16_t()> AcquisitionFunction;
+typedef std::function<int16_t()> AcquisitionFunction;
 const std::unordered_map<std::string, AcquisitionFunction> acquisitionFuncs = {
     {"ECG", acquireSampleECG},
     {"TMP", acquireSampleTemperature}
 };
+
+MAX86150 max86150;
 
 // Operative Settings
 JsonDocument settings;
@@ -86,15 +91,9 @@ void vTask_SampleBiosignal(void *pvParameters) {
 
   // Build full topic name
   char fullTopic[strlen(topicPrefix) + 3];
-  uint8_t j = 0;
-  for (size_t i = 0; i < strlen(topicPrefix); i++)
-    fullTopic[i] = topicPrefix[i];
-  for (size_t i = strlen(topicPrefix); i < strlen(topicPrefix) + 4; i++) { // 3 chars for the signal name + 1 for the null string terminator
-    fullTopic[i] = signalName[j];
-    j++;
-  }
+  strcpy(fullTopic, topicPrefix);
+  strcpy(&fullTopic[strlen(topicPrefix)], signalName);
   
-
   // Recover the correct acquisition function for this signal
   AcquisitionFunction acquireSample = nullptr;
   auto it = acquisitionFuncs.find(signalName);
@@ -104,13 +103,17 @@ void vTask_SampleBiosignal(void *pvParameters) {
     Serial.print(F("[ERROR] Could not find an acquisition function for signal ")); Serial.println(signalName);
   }
 
+  // Initialize sensor if needed
+  if ( (signalName == "ECG" || signalName == "PPG") && (!max86150Initialized) )
+    initializeMAX86150(max86150);
+
   // Check that we have everything we need
   const bool dataOk = (fsample && overlay && npacket && signalName && acquireSample);
   if (!dataOk) { Serial.print(F("[ERROR] Uncastable settings for ")); Serial.println(signalName); }
 
   // Prepare array to hold the samples
-  static uint16_t* samples;
-  samples = static_cast<uint16_t*>(pvPortMalloc(npacket * sizeof(uint16_t)));
+  static int16_t* samples;
+  samples = static_cast<int16_t*>(pvPortMalloc(npacket * sizeof(int16_t)));
   int sampleIndex = 0;
 
   // Prepare timing data
@@ -243,7 +246,8 @@ void applySignalsSettings(const JsonObject signals) {
     static JsonObject sett = pair.value().as<JsonObject>();
     sett["signalName"] = signalName;
 
-    Serial.println(F("[MAIN] Creating freeRTOS task for ECG..."));
+    Serial.print(F("[MAIN] Creating freeRTOS task for "));
+    Serial.println(signalName);
     char* taskName = static_cast<char*>(malloc(sizeof(char) * (strlen(signalName) + 6))); // task_ has 5 chars + 1 for the terminator (NB: strlen() doesn't count the terminator).
     strcpy(taskName, "task_");
     strcpy(&taskName[5], signalName); // strcpy() also copies the terminator. We will overwrite it with the first char of `signalName`.
