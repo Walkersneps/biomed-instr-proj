@@ -78,7 +78,7 @@ const std::unordered_map<std::string, uint8_t> taskHandleIndexes = { // Matches 
 // FreeRTOS Tasks
 void vTask_SampleBiosignal(void *pvParameters) {
   // Recover settings
-  JsonObject config = *(JsonObject *)pvParameters;
+  JsonObject config = *static_cast<JsonObject *>(pvParameters);
   const float fsample = config["fsample"].as<float>();
   const int overlay = config["overlay"].as<int>();
   const int npacket = config["npacket"].as<int>();
@@ -110,7 +110,7 @@ void vTask_SampleBiosignal(void *pvParameters) {
 
   // Prepare array to hold the samples
   static uint16_t* samples;
-  samples = (uint16_t*)pvPortMalloc(npacket * sizeof(uint16_t));
+  samples = static_cast<uint16_t*>(pvPortMalloc(npacket * sizeof(uint16_t)));
   int sampleIndex = 0;
 
   // Prepare timing data
@@ -138,7 +138,7 @@ void vTask_SampleBiosignal(void *pvParameters) {
        * samples as `uint16_t`s --> a cast is needed, keeping in mind that now, interpreting
        * the sample array in this way, we'll have more elements, as 16/8 = 2.
       */
-      mqttClient.publish(fullTopic, 2, false, (uint8_t*)samples, npacket * 2);
+      mqttClient.publish(fullTopic, 2, false, reinterpret_cast<uint8_t*>(samples), npacket * 2);
       
       // Bring back the overlayed samples
       sampleIndex = 0;
@@ -244,7 +244,7 @@ void applySignalsSettings(const JsonObject signals) {
     sett["signalName"] = signalName;
 
     Serial.println(F("[MAIN] Creating freeRTOS task for ECG..."));
-    char* taskName = (char*)malloc(sizeof(char) * (strlen(signalName) + 6)); // task_ has 5 chars + 1 for the terminator (NB: strlen() doesn't count the terminator).
+    char* taskName = static_cast<char*>(malloc(sizeof(char) * (strlen(signalName) + 6))); // task_ has 5 chars + 1 for the terminator (NB: strlen() doesn't count the terminator).
     strcpy(taskName, "task_");
     strcpy(&taskName[5], signalName); // strcpy() also copies the terminator. We will overwrite it with the first char of `signalName`.
     const int priority = sett["priority"].as<int>();
