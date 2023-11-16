@@ -350,19 +350,13 @@ void MAX86150::setup(byte powerLevel, byte sampleAverage, byte ledMode, int samp
   //FIFO Configuration
   //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
   //The chip will average multiple samples of same type together if you wish
-  if (sampleAverage == 1) setFIFOAverage(MAX86150_SAMPLEAVG_1); //No averaging per FIFO record
+  if (sampleAverage == 1) setFIFOAverage(MAX86150_SAMPLEAVG_1); // No averaging per FIFO record
   else if (sampleAverage == 2) setFIFOAverage(MAX86150_SAMPLEAVG_2);
   else if (sampleAverage == 4) setFIFOAverage(MAX86150_SAMPLEAVG_4);
   else if (sampleAverage == 8) setFIFOAverage(MAX86150_SAMPLEAVG_8);
   else if (sampleAverage == 16) setFIFOAverage(MAX86150_SAMPLEAVG_16);
   else if (sampleAverage == 32) setFIFOAverage(MAX86150_SAMPLEAVG_32);
   else setFIFOAverage(MAX86150_SAMPLEAVG_4);
-
-  uint16_t FIFOCode = 0x00;
-
-  FIFOCode = FIFOCode<<4 | 0x0009;// : FIFOCode;  //insert ECG front of ETI in FIFO
-  FIFOCode = FIFOCode<<8 | 0x0021;//) : FIFOCode; //insert Red(2) and IR (1) in front of ECG in FIFO
-
 
   /* Set Registers `FIFO Control 1/2`
     * Those allow choosing which data the FIFO register should hold
@@ -378,28 +372,23 @@ void MAX86150::setup(byte powerLevel, byte sampleAverage, byte ledMode, int samp
     *              0110 -> Pilot LED 2
   */
   writeRegister8(_i2caddr,MAX86150_FIFOCONTROL1,(0b00100001));
-  //writeRegister8(_i2caddr,MAX86150_FIFOCONTROL1,(0b00001001));
   writeRegister8(_i2caddr,MAX86150_FIFOCONTROL2,(0b00001001));
-  //writeRegister8(_i2caddr,MAX86150_FIFOCONTROL2,(0b00000000));
-  //writeRegister8(_i2caddr,MAX86150_FIFOCONTROL1, (char)(FIFOCode & 0x00FF) );
-  //writeRegister8(_i2caddr,MAX86150_FIFOCONTROL2, (char)(FIFOCode >>8) );
 
   /* Set Register `PPG Configuration 1`
     * __MSB__
     * SpO2 ADC Range [2 bits]: 11 --> 62pA LSB and 32768nA FSR
-    * SpO2 Sample Rate [4 bits]: 0100 --> 100 samples/s and 1 pulse/sample
+    * SpO2 Sample Rate [4 bits]: 0101 --> 200 samples/s and 1 pulse/sample
     * LED Pulse Width [2 bits]: 01 --> pulsewidth 100us and integrationtime 100us and 19bits resolution
   */
-  writeRegister8(_i2caddr,MAX86150_PPGCONFIG1,0b11010001);
-  //writeRegister8(_i2caddr,MAX86150_PPGCONFIG1,0b11100111);
+  writeRegister8(_i2caddr,MAX86150_PPGCONFIG1,0b11010101);
 
   /* Set Register `PPG Configuration 1`
-    * PPG Sample Averaging [3 LS bits]: 0x06 = 0b110 --> Average on 32 PPG samples
+    * PPG Sample Averaging [3 LS bits]: 0b001 --> Average on 2 PPG samples
   */
-  writeRegister8(_i2caddr,MAX86150_PPGCONFIG2, 0x06);
+  writeRegister8(_i2caddr,MAX86150_PPGCONFIG2, 0b00000001);
 
   /* Set Register `LED Range`
-    * LED_RANGE = LED2_RGE[2 bits] | LED1_RGE[2 bits]
+    * LED_RANGE [4 least significant bits] = LED2_RGE[2 bits] | LED1_RGE[2 bits]
     * Options for each LED: 00 -> 50 mA
     *                       01 -> 100 mA
   */
