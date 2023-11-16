@@ -132,7 +132,13 @@ void vTask_SampleBiosignal(void *pvParameters) {
     }
 
     if (sampleIndex >= npacket) { // A packet is completeley filled and ready to be sent
-      mqttClient.publish("", 2, false, samples, npacket); // Per library docs, espMqttClient::publish(...) should buffer the payload --> we don't need to worry about overwriting it before it is completely transmitted
+      /* Per library docs, espMqttClient::publish(...) should buffer the payload
+       * --> we don't need to worry about overwriting it before it is completely transmitted.
+       * espMqttClient::publish(...) expects the payload to be an `uint8_t`, but we've been storing
+       * samples as `uint16_t`s --> a cast is needed, keeping in mind that now, interpreting
+       * the sample array in this way, we'll have more elements, as 16/8 = 2.
+      */
+      mqttClient.publish(fullTopic, 2, false, (uint8_t*)samples, npacket * 2);
       
       // Bring back the overlayed samples
       sampleIndex = 0;
