@@ -2,8 +2,6 @@
 #include <max86150.h>
 #include <Wire.h>
 
-extern bool max86150Initialized = false;
-
 void initializeMAX86150(MAX86150 sensor) {
     Serial.println(F("[MAX86150] Setup of MAX86150 Board (for ECG and PPG)"));
     
@@ -15,5 +13,4 @@ void initializeMAX86150(MAX86150 sensor) {
     Serial.println(sensor.readPartID());
 
     sensor.setup();
-    max86150Initialized = true;
 }

@@ -9,7 +9,6 @@
 #include <max86150.h>
 #include <BiosignalsAcquisition.h>
 #include <SensorsInitializations.h>
-#include <sharedObjects.h>
 
 // ## o-o-o-o SETTINGS o-o-o-o ##
 // ##############################
@@ -57,15 +56,6 @@ struct MatchTopic { // Defines how to resolve an MQTT topic match.
 };
 std::map<const char*, espMqttClientTypes::OnMessageCallback, MatchTopic> topicCallbacks; // This map will store the couples {topicName -> callbackFunc}, allowing messages coming from different topics to be handled indipendently.
 
-// Signal-AcquisitionFunction pairing
-typedef std::function<int16_t()> AcquisitionFunction;
-const std::unordered_map<std::string, AcquisitionFunction> acquisitionFuncs = {
-    {"ECG", acquireSampleECG},
-    {"TMP", acquireSampleTemperature}
-};
-
-MAX86150 max86150;
-
 // Operative Settings
 JsonDocument settings;
 
@@ -80,56 +70,70 @@ const std::unordered_map<std::string, uint8_t> taskHandleIndexes = { // Matches 
 
 
 // FreeRTOS Tasks
-void vTask_SampleBiosignal(void *pvParameters) {
+void vTask_SampleMAX86150(void *pvParameters) {
   // Recover settings
   JsonObject config = *static_cast<JsonObject *>(pvParameters);
   const float fsample = config["fsample"].as<float>();
   const int overlay = config["overlay"].as<int>();
   const int npacket = config["npacket"].as<int>();
-  const char* signalName = config["signalName"].as<const char*>();
 
-  // Build full topic name
-  char fullTopic[strlen(topicPrefix) + 3];
-  strcpy(fullTopic, topicPrefix);
-  strcpy(&fullTopic[strlen(topicPrefix)], signalName);
+  // Build full topic names
+  char topicECG[strlen(topicPrefix) + 3];
+  char topicPPGRed[strlen(topicPrefix) + 6];
+  char topicPPGIR[strlen(topicPrefix) + 5];
+  strcpy(topicECG, topicPrefix);
+  strcpy(topicPPGRed, topicPrefix);
+  strcpy(topicPPGIR, topicPrefix);
+  strcpy(&topicECG[strlen(topicPrefix)], "ECG");
+  strcpy(&topicPPGRed[strlen(topicPrefix)], "PPGRed");
+  strcpy(&topicPPGIR[strlen(topicPrefix)], "PPGIR");
   
-  // Recover the correct acquisition function for this signal
-  AcquisitionFunction acquireSample = nullptr;
-  auto it = acquisitionFuncs.find(signalName);
-  if (it != acquisitionFuncs.end()) {
-    acquireSample = it -> second;
-  } else {
-    Serial.print(F("[ERROR] Could not find an acquisition function for signal ")); Serial.println(signalName);
-  }
-
-  // Initialize sensor if needed
-  if ( (signalName == "ECG" || signalName == "PPG") && (!max86150Initialized) )
+  // Initialize sensor
+  MAX86150 max86150;
     initializeMAX86150(max86150);
 
   // Check that we have everything we need
-  const bool dataOk = (fsample && overlay && npacket && signalName && acquireSample);
-  if (!dataOk) { Serial.print(F("[ERROR] Uncastable settings for ")); Serial.println(signalName); }
+  const bool dataOk = (fsample && overlay && npacket);
+  if (!dataOk) { Serial.print(F("[ERROR] Uncastable settings for ECG")); }
 
   // Prepare array to hold the samples
-  static int16_t* samples;
-  samples = static_cast<int16_t*>(pvPortMalloc(npacket * sizeof(int16_t)));
+  static int16_t* samplesECG;
+  static uint16_t* samplesIR;
+  static uint16_t* samplesRED;
+  samplesECG = static_cast<int16_t*>(pvPortMalloc(npacket * sizeof(int16_t)));
+  samplesIR = static_cast<uint16_t*>(pvPortMalloc(npacket * sizeof(uint16_t)));
+  samplesRED = static_cast<uint16_t*>(pvPortMalloc(npacket * sizeof(uint16_t)));
   int sampleIndex = 0;
 
   // Prepare timing data
   const TickType_t samplePeriod = pdMS_TO_TICKS(1000 / fsample); // Convert [Hz] fsample to number of ticks period
-  Serial.printf("[%s] A sample will be acquired every %d ms, aka every %d ticks.\n", signalName, pdTICKS_TO_MS(samplePeriod), samplePeriod);
+  Serial.printf("[%s] A sample will be acquired every %d ms, aka every %d ticks.\n", "ECG/PPG", pdTICKS_TO_MS(samplePeriod), samplePeriod);
   BaseType_t xWasDelayed;
   TickType_t xLastWakeTime = xTaskGetTickCount();
 
   while (dataOk) {
     xWasDelayed = xTaskDelayUntil(&xLastWakeTime, samplePeriod);
 
-    samples[sampleIndex] = acquireSample();
+    if (max86150.check() > 0) {
+     /* Note on MAX86150 data!
+      * The data that then sensor outputs is  3-byte-long (24bit),
+      * although the actual useful datum is always either 18 (for ECG) or 19 (for PPG) bits long.
+      * 
+      * The library we're using returns those in `uint32_t` datatype to fit the whole 24bits,
+      * while masking the unused MSBs of each datum to 0.
+      * 
+      * Accepting to lose 2 LSBs of resolution, we can fit the data in 16bits, just by shifting
+      * to the right 2 positions.
+      */
+      samplesECG[sampleIndex] = static_cast<int16_t>(max86150.getFIFOECG() >> 2);
+      samplesIR[sampleIndex] = static_cast<uint16_t>(max86150.getFIFOIR() >> 2);
+      samplesRED[sampleIndex] = static_cast<uint16_t>(max86150.getFIFORed() >> 2);
     sampleIndex++;
+    }
 
     if (xWasDelayed == pdTRUE) {
       Serial.print("[");
-      Serial.print(signalName);
+      Serial.print(F("MAX86150"));
       Serial.println(F("] ! Sampling was delayed!"));
     }
 
@@ -140,12 +144,16 @@ void vTask_SampleBiosignal(void *pvParameters) {
        * samples as `uint16_t`s --> a cast is needed, keeping in mind that now, interpreting
        * the sample array in this way, we'll have more elements, as 16/8 = 2.
       */
-      mqttClient.publish(fullTopic, 2, false, reinterpret_cast<uint8_t*>(samples), npacket * 2);
+      mqttClient.publish(topicECG, 2, false, reinterpret_cast<uint8_t*>(samplesECG), npacket * 2);
+      mqttClient.publish(topicPPGRed, 2, false, reinterpret_cast<uint8_t*>(samplesRED), npacket * 2);
+      mqttClient.publish(topicPPGIR, 2, false, reinterpret_cast<uint8_t*>(samplesIR), npacket * 2);
       
       // Bring back the overlayed samples
       sampleIndex = 0;
       for (uint8_t i = overlay; i > 0; i--) {
-        samples[sampleIndex] = samples[npacket - i];
+        samplesECG[sampleIndex] = samplesECG[npacket - i];
+        samplesIR[sampleIndex] = samplesIR[npacket - i];
+        samplesRED[sampleIndex] = samplesRED[npacket - i];
         sampleIndex++;
       }
     }
@@ -153,7 +161,9 @@ void vTask_SampleBiosignal(void *pvParameters) {
   }
 
   // TODO: !!! ensure this is run also on task deletion !!!
-  vPortFree(samples);
+  vPortFree(samplesECG);
+  vPortFree(samplesIR);
+  vPortFree(samplesRED);
 }
 
 
