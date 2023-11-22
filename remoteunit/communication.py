@@ -5,20 +5,24 @@ from json import dumps as jsondumps
 import settings as cfg
 
 
-def payloadToList(payload: bytes | bytearray):
+def payloadToList(pl: bytes | bytearray, signed: bool) -> list:
     """Converts an MQTT payload to `list[int]`
 
     Parameters
     ----------
-    payload : bytes | bytearray
+    pl : bytes | bytearray
         The payload as received by the MQTT handler.
+    signed : bool
+        Whether the bytes are to be interpreted in 2's complement (--> signed ints) or not (--> unsigned ints)
 
     Returns
     -------
     list(int)
         A List object holding the converted data.
     """
-    return [int(smpl) for smpl in payload.decode().replace('[', '').replace(']', '').split(', ')]
+    #return [int(smpl) for smpl in pl.decode().replace('[', '').replace(']', '').split(', ')]
+    print(pl.hex(sep= ':', bytes_per_sep= 2))
+    return [int.from_bytes(bytes= pl[i:i+2], byteorder= 'big', signed= signed) for i in range(0, len(pl), 2)]
 
 
 class MQTTManager:
@@ -78,7 +82,7 @@ class MQTTManager:
         signalName: str = msg.topic.removeprefix(f"{cfg.MQTT_TOPIC_PREFIX}")
         #print(f"On signal {signalName}, Received data payload: {msg.payload}")
         self.samples[signalName]['old'] = self.samples[signalName]['new'] # Store old data: may be needed if pkt was received before finishing plotting all samples of previous batch
-        self.samples[signalName]['new'] = payloadToList(msg.payload)
+        self.samples[signalName]['new'] = payloadToList(msg.payload, signalName in cfg.SIGNED_BIOSIGNALS)
         self.newData[signalName] = True # Notify that new data was received, for this specific signal
 
 

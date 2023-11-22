@@ -1,28 +1,28 @@
 # o-o-o-o ACQUISITION SYSTEM SETTINGS o-o-o-o #
 # NB!!! Make sure that 'fsample' is an integer multiple of 'fpacket' !!!
 BIOSIGNALS: dict[str, dict[str, float]] = {"ECG": {
-                                                   "fsample": 10,
-                                                   "fpacket": 0.5,
+                                                   "fsample": 200,
+                                                   "fpacket": 1,
                                                    "overlay": 20,
                                                    "npacket": 200,
                                                    "priority": 10
                                                 },
-                                           "PPG": {
-                                                   "fsample": 300,
-                                                   "fpacket": 2,
+                                           "PPGRed": {
+                                                   "fsample": 200,
+                                                   "fpacket": 1,
                                                    "overlay": 30,
-                                                   "npacket": 100,
+                                                   "npacket": 200,
                                                    "priority": 10
                                                 },
-                                           "TMP": {
-                                                   "fsample": 0.5,
-                                                   "npacket": 5,
-                                                   "overlay": 1,
-                                                   "priority": 5,
-                                                   "fpacket": 2
-                                                }
-                                          #"GSR"
+                                           "PPGIR": {
+                                                "fsample": 200,
+                                                "fpacket": 1,
+                                                "overlay": 30,
+                                                "npacket": 200,
+                                                "priority": 10
+                                        },
                                         }
+SIGNED_BIOSIGNALS = ["ECG"]
 
 # o-o-o-o MQTT SETTINGS #
 MQTT_BROKER_ADDR: str = "broker.hivemq.com" # address of the MQTT broker
