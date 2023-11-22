@@ -14,8 +14,7 @@
 // ## o-o-o-o SETTINGS o-o-o-o ##
 // ##############################
 // ###  Wifi Settings ###
-#define WIFI_SSID "ap_ssid"
-#define WIFI_PSWD "password"
+#include <secrets.h> // Tune this to your setup
 
 // ### MQTT Settings ###
 #define MQTT_BROKER_HOST IPAddress(192, 168, 1, 1)
