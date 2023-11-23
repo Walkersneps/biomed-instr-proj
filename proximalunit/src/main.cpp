@@ -90,7 +90,7 @@ void vTask_SampleMAX86150(void *pvParameters) {
   
   // Initialize sensor
   MAX86150 max86150;
-    initializeMAX86150(max86150);
+  initializeMAX86150(max86150);
 
   // Check that we have everything we need
   const bool dataOk = (fsample && overlay && npacket);
@@ -128,7 +128,7 @@ void vTask_SampleMAX86150(void *pvParameters) {
       samplesECG[sampleIndex] = static_cast<int16_t>(max86150.getFIFOECG() >> 2);
       samplesIR[sampleIndex] = static_cast<uint16_t>(max86150.getFIFOIR() >> 2);
       samplesRED[sampleIndex] = static_cast<uint16_t>(max86150.getFIFORed() >> 2);
-    sampleIndex++;
+      sampleIndex++;
     }
 
     if (xWasDelayed == pdTRUE) {
@@ -242,6 +242,27 @@ void _onOversizedMessage(const espMqttClientTypes::MessageProperties& props, con
   Serial.println(F("[MQTT] Got an oversized MQTT message. I can't handle that! :(("));
 }
 
+void createSamplingTask(const char* signalName, char* taskName, UBaseType_t uxPriority, void* pvParameters, BaseType_t xCoreID) {
+  auto it = taskHandleIndexes.find(signalName);
+  if (it != taskHandleIndexes.end()) { // `signalName` was found in the map (aka I haven't searched for it past the map's own size)
+    TaskHandle_t* taskHandle = taskHandles[it -> second]; // obtain the corresponding taskHandle*
+
+    switch (it -> second) {
+      case IDX_ECG:
+        xTaskCreatePinnedToCore(vTask_SampleMAX86150, taskName, 2048, pvParameters, uxPriority, taskHandle, xCoreID);
+        break;
+      
+      default:
+        Serial.println(F("       . TashHandle INDEX not in switch/case."));
+        Serial.println(F("[ERROR]. Couldn't create sampling task."));
+        break;
+    }
+  } else { // no index was specified for this specific signalName
+    Serial.println(F("       . I don't know where to look for the index of the taskHandle* for this signal"));
+    Serial.println(F("[ERROR]. Couldn't create sampling task."));
+  }
+}
+
 void applySignalsSettings(const JsonObject signals) {
   // Delete old tasks
   // TODO: ensure they have freed their malloc()'ed memory!!
@@ -253,7 +274,7 @@ void applySignalsSettings(const JsonObject signals) {
   for (JsonPair pair: signals) { // See the same iterator implemented in `_onCompleteConfigMessage(...)` for details
     const char* signalName = pair.key().c_str();
     static JsonObject sett = pair.value().as<JsonObject>();
-    sett["signalName"] = signalName;
+    sett["signalName"] = signalName; // add field to sett, useful to pass on the signalName to invoked subroutines
 
     Serial.print(F("[MAIN] Creating freeRTOS task for "));
     Serial.println(signalName);
@@ -261,8 +282,9 @@ void applySignalsSettings(const JsonObject signals) {
     strcpy(taskName, "task_");
     strcpy(&taskName[5], signalName); // strcpy() also copies the terminator. We will overwrite it with the first char of `signalName`.
     const int priority = sett["priority"].as<int>();
-    TaskHandle_t* taskHandle = taskHandles[taskHandleIndexes.find(signalName) -> second];
-    xTaskCreatePinnedToCore(vTask_SampleBiosignal, taskName, 2048, &sett, priority, taskHandle, APP_CPU_NUM);
+
+    createSamplingTask(signalName, taskName, priority, &sett, APP_CPU_NUM);
+
     free(taskName);
   }
     
