@@ -25,7 +25,7 @@ BIOSIGNALS: dict[str, dict[str, float]] = {"ECG": {
 SIGNED_BIOSIGNALS = ["ECG"]
 
 # o-o-o-o MQTT SETTINGS #
-MQTT_BROKER_ADDR: str = "broker.hivemq.com" # address of the MQTT broker
+MQTT_BROKER_ADDR: str = "localhost" # address of the MQTT broker
 MQTT_BROKER_PORT: int = 1883 # TCP port of the MQTT broker
 MQTT_TOPIC_CFG: str = "cfg" # topic on which remoteunit and proximalunit will exchange configuration information. NB: this must be hardcoded in the proximalunit firmware.
 MQTT_TOPIC_PREFIX: str = "signal/" # common prefix of the topics on which proximalunit should send the acquired samples
