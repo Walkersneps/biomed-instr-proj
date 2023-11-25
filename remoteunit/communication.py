@@ -21,8 +21,8 @@ def payloadToList(pl: bytes | bytearray, signed: bool) -> list:
         A List object holding the converted data.
     """
     #return [int(smpl) for smpl in pl.decode().replace('[', '').replace(']', '').split(', ')]
-    print(pl.hex(sep= ':', bytes_per_sep= 2))
-    return [int.from_bytes(bytes= pl[i:i+2], byteorder= 'big', signed= signed) for i in range(0, len(pl), 2)]
+    #print(pl.hex(sep= ':', bytes_per_sep= 2))
+    return [int.from_bytes(bytes= pl[i:i+2], byteorder= 'little', signed= signed) for i in range(0, len(pl), 2)]
 
 
 class MQTTManager:
