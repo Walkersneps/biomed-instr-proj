@@ -122,7 +122,8 @@ void vTask_SampleMAX86150(void *pvParameters) {
     xWasDelayed = xTaskDelayUntil(&xLastWakeTime, samplePeriod);
 
     //Serial.println(F("[ECG] Polling max86150..."));
-    if (max86150 -> check() > 0) {
+    if (max86150->check() > 0) { // check() polls the sensor, and saves all the available samples in the local FIFO.
+      while (max86150->available()) { // available() checks the local FIFO, and returns (head-tail).
      /* Note on MAX86150 data!
       * The data that then sensor outputs is  3-byte-long (24bit),
       * although the actual useful datum is always either 18 (for ECG) or 19 (for PPG) bits long.
@@ -134,10 +135,13 @@ void vTask_SampleMAX86150(void *pvParameters) {
       * to the right 2 positions.
       */
       //Serial.printf("[ECG] saving data @idx %d...", sampleIndex);
-      samplesECG[sampleIndex] = static_cast<int16_t>(max86150 -> getFIFOECG() >> 2);
-      samplesIR[sampleIndex] = static_cast<uint16_t>(max86150 -> getFIFOIR() >> 2);
-      samplesRED[sampleIndex] = static_cast<uint16_t>(max86150 -> getFIFORed() >> 2);
+        samplesECG[sampleIndex] = static_cast<int16_t>(max86150->getFIFOECG() >> 2);
+        samplesIR[sampleIndex] = static_cast<uint16_t>(max86150->getFIFOIR() >> 2);
+        samplesRED[sampleIndex] = static_cast<uint16_t>(max86150->getFIFORed() >> 2);
       sampleIndex++;
+        max86150->nextSample(); // Advance the local FIFO's tail.
+      }
+
       Serial.println(F(" done!"));
     }
 
@@ -147,7 +151,7 @@ void vTask_SampleMAX86150(void *pvParameters) {
       Serial.println(F("] ! Sampling was delayed!"));
     }
 
-    //Serial.println(F("[ECG] Checking is packet is ready..."));
+    //Serial.println(F("[ECG] Checking if packet is ready..."));
     if (sampleIndex >= npacket) { // A packet is completeley filled and ready to be sent
       /* Per library docs, espMqttClient::publish(...) should buffer the payload
        * --> we don't need to worry about overwriting it before it is completely transmitted.
@@ -155,7 +159,7 @@ void vTask_SampleMAX86150(void *pvParameters) {
        * samples as `uint16_t`s --> a cast is needed, keeping in mind that now, interpreting
        * the sample array in this way, we'll have more elements, as 16/8 = 2.
       */
-      Serial.println("[ECG] Publishing data!");
+      Serial.println("[IR] Publishing data!");
       for (int k=0; k<npacket; k++) {
         Serial.printf("%d:", samplesIR[k]);
       }
