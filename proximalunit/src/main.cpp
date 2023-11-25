@@ -72,10 +72,12 @@ const std::unordered_map<std::string, uint8_t> taskHandleIndexes = { // Matches 
 // FreeRTOS Tasks
 void vTask_SampleMAX86150(void *pvParameters) {
   // Recover settings
-  JsonObject config = *static_cast<JsonObject *>(pvParameters);
-  const float fsample = config["fsample"].as<float>();
-  const int overlay = config["overlay"].as<int>();
-  const int npacket = config["npacket"].as<int>();
+  //JsonObject config = *static_cast<JsonObject *>(pvParameters);
+  const double fsample = 200;//config["fsample"].as<float>();
+  const int overlay = 30;//config["overlay"].as<int>();
+  const int npacket = 200;//config["npacket"].as<int>();
+
+  strcpy(topicPrefix, "signal/");
 
   // Build full topic names
   char topicECG[strlen(topicPrefix) + 3];
@@ -213,11 +215,13 @@ void _onMQTTConnect(bool sessionPresent) {
   Serial.print(F("[MQTT] Connected to broker!\n[MQTT] Session present: "));
   Serial.println(sessionPresent);
 
-  Serial.printf("[MQTT] Subscribing to Configuration channel `%s`...\n", MQTT_TOPIC_CONFIG);
-  mqttClient.subscribe(MQTT_TOPIC_CONFIG, 2);
+  //Serial.printf("[MQTT] Subscribing to Configuration channel `%s`...\n", MQTT_TOPIC_CONFIG);
+  //mqttClient.subscribe(MQTT_TOPIC_CONFIG, 2);
 
   Serial.println(F("[MQTT] Publishing presence message..."));
   mqttClient.publish(MQTT_TOPIC_CONFIG, 2, false, "[proximalunit] Connected!");
+
+  xTaskCreatePinnedToCore(vTask_SampleMAX86150, "task_ECG", 2048, NULL, 10, taskHandles[IDX_ECG], APP_CPU_NUM);
 }
 
 void _onMQTTDisconnect(espMqttClientTypes::DisconnectReason reason) {
@@ -407,7 +411,7 @@ void setup() {
   mqttClient.onConnect(_onMQTTConnect);
   mqttClient.onDisconnect(_onMQTTDisconnect);
   mqttClient.onSubscribe(_onMQTTSubscribe);
-  mqttClient.onMessage(_onMQTTMessage);
+  //mqttClient.onMessage(_onMQTTMessage);
   // Settings
   mqttClient.setServer(MQTT_BROKER_HOST, MQTT_BROKER_PORT);
 
