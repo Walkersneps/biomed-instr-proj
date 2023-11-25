@@ -13,10 +13,12 @@
 // ## o-o-o-o SETTINGS o-o-o-o ##
 // ##############################
 // ###  Wifi Settings ###
-#include <secrets.h> // Tune this to your setup
+#define WIFI_IP_SELF IPAddress(10, 42, 0, 171)
+#define WIFI_IP_GATEWAY IPAddress(10, 42, 0, 1)
+#define WIFI_SUBNETMASK IPAddress(255, 255, 255, 0)
 
 // ### MQTT Settings ###
-#define MQTT_BROKER_HOST IPAddress(192, 168, 1, 1)
+#define MQTT_BROKER_HOST IPAddress(10, 42, 0, 1)
 #define MQTT_BROKER_PORT 1883
 #define MQTT_TOPIC_CONFIG "cfg"
 
@@ -173,7 +175,7 @@ void vTask_SampleMAX86150(void *pvParameters) {
 
 void connectToWiFi(const char* ssid, const char* pswd) {
   Serial.printf("[MAIN] Connecting to WiFi... ssid: '%s'. password: '%s'.\n", ssid, pswd);
-  WiFi.begin(ssid, pswd);
+  WiFi.begin(ssid, pswd, 7);
 }
 
 void connectToMQTTBroker() {
@@ -200,6 +202,10 @@ void WiFiEvent(WiFiEvent_t e) {
 
     case SYSTEM_EVENT_STA_DISCONNECTED:
       Serial.println(F("[WiFi] [ERROR] WiFi connection has been lost!"));
+      break;
+
+    case SYSTEM_EVENT_STA_CONNECTED:
+      Serial.println(F("[WiFi] STA Connected!"));
       break;
     
     default:
@@ -405,6 +411,9 @@ void setup() {
   WiFi.setAutoReconnect(true);
   WiFi.onEvent(WiFiEvent);
   WiFi.setMinSecurity(WIFI_AUTH_OPEN);
+  if (!WiFi.config(WIFI_IP_SELF, WIFI_IP_GATEWAY, WIFI_SUBNETMASK)) {
+    Serial.println("STA Failed to configure");
+  }
 
   Serial.println(F("[SETUP] Setupping MQTT Client..."));
   // Event callbacks
