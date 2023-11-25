@@ -89,7 +89,7 @@ void vTask_SampleMAX86150(void *pvParameters) {
   strcpy(&topicPPGIR[strlen(topicPrefix)], "PPGIR");
   
   // Initialize sensor
-  MAX86150 max86150;
+  MAX86150* max86150 = new MAX86150();
   initializeMAX86150(max86150);
 
   // Check that we have everything we need
@@ -114,7 +114,7 @@ void vTask_SampleMAX86150(void *pvParameters) {
   while (dataOk) {
     xWasDelayed = xTaskDelayUntil(&xLastWakeTime, samplePeriod);
 
-    if (max86150.check() > 0) {
+    if (max86150 -> check() > 0) {
      /* Note on MAX86150 data!
       * The data that then sensor outputs is  3-byte-long (24bit),
       * although the actual useful datum is always either 18 (for ECG) or 19 (for PPG) bits long.
@@ -125,9 +125,9 @@ void vTask_SampleMAX86150(void *pvParameters) {
       * Accepting to lose 2 LSBs of resolution, we can fit the data in 16bits, just by shifting
       * to the right 2 positions.
       */
-      samplesECG[sampleIndex] = static_cast<int16_t>(max86150.getFIFOECG() >> 2);
-      samplesIR[sampleIndex] = static_cast<uint16_t>(max86150.getFIFOIR() >> 2);
-      samplesRED[sampleIndex] = static_cast<uint16_t>(max86150.getFIFORed() >> 2);
+      samplesECG[sampleIndex] = static_cast<int16_t>(max86150 -> getFIFOECG() >> 2);
+      samplesIR[sampleIndex] = static_cast<uint16_t>(max86150 -> getFIFOIR() >> 2);
+      samplesRED[sampleIndex] = static_cast<uint16_t>(max86150 -> getFIFORed() >> 2);
       sampleIndex++;
     }
 
