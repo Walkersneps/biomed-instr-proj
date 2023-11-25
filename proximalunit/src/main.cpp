@@ -208,7 +208,9 @@ void WiFiEvent(WiFiEvent_t e) {
       Serial.print(F("[WiFi] Connection successful!!\n[WiFi] IP Address is: "));
       Serial.println(WiFi.localIP());
       
-      connectToMQTTBroker();
+      //connectToMQTTBroker();
+      needsMQTTreconnection = true;
+      timeOfLastReconnect = millis();
       break;
 
     case SYSTEM_EVENT_STA_DISCONNECTED:
