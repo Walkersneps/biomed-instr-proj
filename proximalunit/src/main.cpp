@@ -101,6 +101,7 @@ void vTask_SampleMAX86150(void *pvParameters) {
   if (!dataOk) { Serial.print(F("[ERROR] Uncastable settings for ECG")); }
 
   // Prepare array to hold the samples
+  Serial.print(F("[ECG] Creating samples arrays..."));
   static int16_t* samplesECG;
   static uint16_t* samplesIR;
   static uint16_t* samplesRED;
@@ -108,16 +109,19 @@ void vTask_SampleMAX86150(void *pvParameters) {
   samplesIR = static_cast<uint16_t*>(pvPortMalloc(npacket * sizeof(uint16_t)));
   samplesRED = static_cast<uint16_t*>(pvPortMalloc(npacket * sizeof(uint16_t)));
   int sampleIndex = 0;
+  Serial.println(" done!");
 
   // Prepare timing data
   const TickType_t samplePeriod = pdMS_TO_TICKS(1000 / fsample); // Convert [Hz] fsample to number of ticks period
   Serial.printf("[%s] A sample will be acquired every %d ms, aka every %d ticks.\n", "ECG/PPG", pdTICKS_TO_MS(samplePeriod), samplePeriod);
   BaseType_t xWasDelayed;
   TickType_t xLastWakeTime = xTaskGetTickCount();
+  Serial.println("[ECG] Timerdata set.");
 
   while (dataOk) {
     xWasDelayed = xTaskDelayUntil(&xLastWakeTime, samplePeriod);
 
+    //Serial.println(F("[ECG] Polling max86150..."));
     if (max86150 -> check() > 0) {
      /* Note on MAX86150 data!
       * The data that then sensor outputs is  3-byte-long (24bit),
@@ -129,10 +133,12 @@ void vTask_SampleMAX86150(void *pvParameters) {
       * Accepting to lose 2 LSBs of resolution, we can fit the data in 16bits, just by shifting
       * to the right 2 positions.
       */
+      //Serial.printf("[ECG] saving data @idx %d...", sampleIndex);
       samplesECG[sampleIndex] = static_cast<int16_t>(max86150 -> getFIFOECG() >> 2);
       samplesIR[sampleIndex] = static_cast<uint16_t>(max86150 -> getFIFOIR() >> 2);
       samplesRED[sampleIndex] = static_cast<uint16_t>(max86150 -> getFIFORed() >> 2);
       sampleIndex++;
+      Serial.println(F(" done!"));
     }
 
     if (xWasDelayed == pdTRUE) {
@@ -141,6 +147,7 @@ void vTask_SampleMAX86150(void *pvParameters) {
       Serial.println(F("] ! Sampling was delayed!"));
     }
 
+    //Serial.println(F("[ECG] Checking is packet is ready..."));
     if (sampleIndex >= npacket) { // A packet is completeley filled and ready to be sent
       /* Per library docs, espMqttClient::publish(...) should buffer the payload
        * --> we don't need to worry about overwriting it before it is completely transmitted.
@@ -148,6 +155,10 @@ void vTask_SampleMAX86150(void *pvParameters) {
        * samples as `uint16_t`s --> a cast is needed, keeping in mind that now, interpreting
        * the sample array in this way, we'll have more elements, as 16/8 = 2.
       */
+      Serial.println("[ECG] Publishing data!");
+      for (int k=0; k<npacket; k++) {
+        Serial.printf("%d:", samplesIR[k]);
+      }
       mqttClient.publish(topicECG, 2, false, reinterpret_cast<uint8_t*>(samplesECG), npacket * 2);
       mqttClient.publish(topicPPGRed, 2, false, reinterpret_cast<uint8_t*>(samplesRED), npacket * 2);
       mqttClient.publish(topicPPGIR, 2, false, reinterpret_cast<uint8_t*>(samplesIR), npacket * 2);
