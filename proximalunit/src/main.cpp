@@ -400,6 +400,7 @@ void setup() {
   WiFi.setAutoConnect(false);
   WiFi.setAutoReconnect(true);
   WiFi.onEvent(WiFiEvent);
+  WiFi.setMinSecurity(WIFI_AUTH_OPEN);
 
   Serial.println(F("[SETUP] Setupping MQTT Client..."));
   // Event callbacks
