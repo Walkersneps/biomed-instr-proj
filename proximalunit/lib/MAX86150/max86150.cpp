@@ -400,7 +400,7 @@ void MAX86150::setup(byte powerLevel, byte sampleAverage, byte ledMode, int samp
     * Reset [bit #0]: 0 --> Normal Operation (If 1, the MAX86150 will undergo a reset cycle)
     * __LSB__
   */
-  writeRegister8(_i2caddr,MAX86150_SYSCONTROL,0x04);//start FIFO
+  writeRegister8(_i2caddr, MAX86150_SYSCONTROL, 0x04);//start FIFO
 
   /* Set Register `ECG Configuration 1`
     * ECG ADC Settings

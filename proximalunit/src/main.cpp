@@ -7,30 +7,31 @@
 #include <espMqttClientAsync.h>
 #include <ArduinoJson.h>
 #include <max86150.h>
-#include <BiosignalsAcquisition.h>
+//#include <BiosignalsAcquisition.h>
 #include <SensorsInitializations.h>
+#include <secrets.h>
 
 // ## o-o-o-o SETTINGS o-o-o-o ##
 // ##############################
-// ###  Wifi Settings ###
+// ###  Biosignals Settings  ###
+#define NSIGNALS 5 // How many signals we're acquiring
+
+// ###  Wifi Settings  ###
 #define WIFI_IP_SELF IPAddress(10, 42, 0, 171)
 #define WIFI_IP_GATEWAY IPAddress(10, 42, 0, 1)
 #define WIFI_SUBNETMASK IPAddress(255, 255, 255, 0)
 
-// ### MQTT Settings ###
+// ###  MQTT Settings  ###
 #define MQTT_BROKER_HOST IPAddress(10, 42, 0, 1)
 #define MQTT_BROKER_PORT 1883
 #define MQTT_TOPIC_CONFIG "cfg"
 
+// ###  Serial Port Settings  ###
 #define SERIAL_BAUDRATE 115200
-
-#define MAX_SIGNALS 5 // Maximum numbers of signals to be acquired
-
 // ###############################
 // o-o-o-o END of SETTINGS o-o-o-o
 
 // Standard indexes for arrays
-// NB: none of those must exceed `MAX_SIGNALS - 1`!!!
 #define IDX_ECG 0 // ElectroCardioGram
 #define IDX_PPG 1 // PhotoPletismoGram
 #define IDX_GSR 2 // Galvanic Skin Response
@@ -62,7 +63,7 @@ std::map<const char*, espMqttClientTypes::OnMessageCallback, MatchTopic> topicCa
 JsonDocument settings;
 
 // FreeRTOS Tasks handles
-TaskHandle_t* taskHandles[MAX_SIGNALS] = {nullptr}; // Stores handles pointing to created RTOS tasks
+TaskHandle_t* taskHandles[NSIGNALS] = {nullptr}; // Stores handles pointing to created RTOS tasks
 const std::unordered_map<std::string, uint8_t> taskHandleIndexes = { // Matches signalName to correct index of the handle to the vTask() which samples that signal.
   {"ECG", IDX_ECG},
   {"PPG", IDX_PPG},
@@ -75,8 +76,8 @@ const std::unordered_map<std::string, uint8_t> taskHandleIndexes = { // Matches 
 void vTask_SampleMAX86150(void *pvParameters) {
   // Recover settings
   //JsonObject config = *static_cast<JsonObject *>(pvParameters);
-  const double fsample = 200;//config["fsample"].as<float>();
-  const int overlay = 30;//config["overlay"].as<int>();
+  const double fsample = 220;//config["fsample"].as<float>();
+  const int overlay = 20;//config["overlay"].as<int>();
   const int npacket = 200;//config["npacket"].as<int>();
 
   strcpy(topicPrefix, "signal/");
@@ -119,11 +120,11 @@ void vTask_SampleMAX86150(void *pvParameters) {
   Serial.println("[ECG] Timerdata set.");
 
   while (dataOk) {
-    xWasDelayed = xTaskDelayUntil(&xLastWakeTime, samplePeriod);
+    //xWasDelayed = xTaskDelayUntil(&xLastWakeTime, samplePeriod);
 
     //Serial.println(F("[ECG] Polling max86150..."));
     if (max86150->check() > 0) { // check() polls the sensor, and saves all the available samples in the local FIFO.
-      while (max86150->available()) { // available() checks the local FIFO, and returns (head-tail).
+      //while (max86150->available()) { // available() checks the local FIFO, and returns (head-tail).
       /* Note on MAX86150 data!
         * The data that then sensor outputs is  3-byte-long (24bit),
         * although the actual useful datum is always either 18 (for ECG) or 19 (for PPG) bits long.
@@ -139,17 +140,18 @@ void vTask_SampleMAX86150(void *pvParameters) {
         samplesIR[sampleIndex] = static_cast<uint16_t>(max86150->getFIFOIR() >> 2);
         samplesRED[sampleIndex] = static_cast<uint16_t>(max86150->getFIFORed() >> 2);
         sampleIndex++;
-        max86150->nextSample(); // Advance the local FIFO's tail.
-      }
+        //max86150->nextSample(); // Advance the local FIFO's tail.
+      //}
 
-      Serial.println(F(" done!"));
+      //Serial.println(F(" done!"));
     }
 
+    /*
     if (xWasDelayed == pdTRUE) {
       Serial.print("[");
       Serial.print(F("MAX86150"));
       Serial.println(F("] ! Sampling was delayed!"));
-    }
+    }*/
 
     //Serial.println(F("[ECG] Checking if packet is ready..."));
     if (sampleIndex >= npacket) { // A packet is completeley filled and ready to be sent
@@ -166,6 +168,7 @@ void vTask_SampleMAX86150(void *pvParameters) {
       mqttClient.publish(topicECG, 2, false, reinterpret_cast<uint8_t*>(samplesECG), npacket * 2);
       mqttClient.publish(topicPPGRed, 2, false, reinterpret_cast<uint8_t*>(samplesRED), npacket * 2);
       mqttClient.publish(topicPPGIR, 2, false, reinterpret_cast<uint8_t*>(samplesIR), npacket * 2);
+      Serial.println(F("pub"));
       
       // Bring back the overlayed samples
       sampleIndex = 0;
@@ -244,6 +247,7 @@ void _onMQTTConnect(bool sessionPresent) {
   Serial.println(F("[MQTT] Publishing presence message..."));
   mqttClient.publish(MQTT_TOPIC_CONFIG, 2, false, "[proximalunit] Connected!");
 
+  // Create Sampling tasks
   xTaskCreatePinnedToCore(vTask_SampleMAX86150, "task_ECG", 2048, NULL, 10, taskHandles[IDX_ECG], APP_CPU_NUM);
 }
 
@@ -269,6 +273,7 @@ void _onOversizedMessage(const espMqttClientTypes::MessageProperties& props, con
   Serial.println(F("[MQTT] Got an oversized MQTT message. I can't handle that! :(("));
 }
 
+/*
 void createSamplingTask(const char* signalName, char* taskName, UBaseType_t uxPriority, void* pvParameters, BaseType_t xCoreID) {
   auto it = taskHandleIndexes.find(signalName);
   if (it != taskHandleIndexes.end()) { // `signalName` was found in the map (aka I haven't searched for it past the map's own size)
@@ -289,7 +294,9 @@ void createSamplingTask(const char* signalName, char* taskName, UBaseType_t uxPr
     Serial.println(F("[ERROR]. Couldn't create sampling task."));
   }
 }
+*/
 
+/*
 void applySignalsSettings(const JsonObject signals) {
   // Delete old tasks
   // TODO: ensure they have freed their malloc()'ed memory!!
@@ -316,6 +323,7 @@ void applySignalsSettings(const JsonObject signals) {
   }
     
 }
+*/
 
 /* Final arrival point of messages published to topic `MQTT_TOPIC_CONFIG`.*/
 void _onCompleteConfigMessage(const espMqttClientTypes::MessageProperties& props, const char* topic, const uint8_t* payload, size_t chunkSize, size_t index, size_t total) {
@@ -340,16 +348,18 @@ void _onCompleteConfigMessage(const espMqttClientTypes::MessageProperties& props
   // Save signals topic prefix
   strcpy(topicPrefix, settings["MQTT_TOPIC_PREFIX"].as<const char*>());
 
+  /*
   JsonObject json = settings.as<JsonObject>(); // Get smart object reference
   for (JsonPair pair: json) { // Look for the `BIOSIGNALS` field, which contains settings for each signal
     /* Each JsonPair contains:
      * JsonPair::key() -> JsonString
      * JsonPair::value() -> JsonVariant
     */
+   /*
     if (!strcmp(pair.key().c_str(), "BIOSIGNALS")) {
       applySignalsSettings(pair.value().as<JsonObject>());
     }
-  }
+  }*/
 }
 
 /* Handler for messages received on `MQTT_TOPIC_CONFIG`.

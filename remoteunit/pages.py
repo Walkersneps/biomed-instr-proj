@@ -43,7 +43,7 @@ class BasePage:
         """
         return (Line2D([], []),)
 
-    def animate(self, refreshInterval: int= cfg.PERIOD_PLOT['ECG']):
+    def animate(self, refreshInterval = 50):#cfg.PERIOD_PLOT['ECG']):
         """Initialize and start animation of plots in this page.
 
         The animation can be stopped by deleting the reference to property `anim`
@@ -215,30 +215,37 @@ class Page2(BasePage):
         self.xdata = [i for i in range(self.totDataPoints)]
 
         # Initialize Y-Axes vectors
-        self.ecgData = [0 for i in self.xdata]
-        self.ppgIrData = [0 for i in self.xdata]
+        self.ecgData = [0 for _ in self.xdata]
+        self.ppgIrData = [0 for _ in self.xdata]
 
         # Do the plots (aka draw and get Line2D objs)
         self.ecgLine, = self.axECG.plot(self.xdata, self.ecgData)
         self.ppgIrLine, = self.axPPGir.plot(self.xdata, self.ppgIrData)
 
         # Set Plot vertical limits
-        self.axECG.set_ylim(bottom= -1000.1, top= 1000.1)
+        self.axECG.set_ylim(bottom= -2000.1, top= 3000)
         self.axPPGir.set_ylim(bottom= 0, top= 10000)
 
         # Define data sources
         self.ecgSample = self.sampleExtractor('ECG')
         self.ppgIRSample = self.sampleExtractor('PPGIR')
 
+        self.ecgIdx = 0
+
 
     def _animateFrame(self, cursor) -> tuple[Line2D, ...]:
-        self.ecgData[cursor] = next(self.ecgSample)
+        for i in range(self.ecgIdx, self.ecgIdx+10):
+            self.ecgData[i] = next(self.ecgSample)
+        self.ecgIdx = self.ecgIdx + 10
+        if self.ecgIdx >= self.totDataPoints:
+            self.ecgIdx = 0
         self.ecgLine.set_ydata(self.ecgData)
+        print(self.ecgData)
 
-        self.ppgIrData[cursor] = next(self.ppgIRSample)
-        self.ppgIrLine.set_ydata(self.ppgIrData)
+        #self.ppgIrData[cursor] = next(self.ppgIRSample)
+        #self.ppgIrLine.set_ydata(self.ppgIrData)
 
-        return (self.ecgLine, self.ppgIrLine)
+        return (self.ecgLine, )#, self.ppgIrLine)
         #plt.draw()
         #self.ax1.cla()
         #plt.plot(self.xdata, self.ecgData)
