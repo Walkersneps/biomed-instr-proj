@@ -33,10 +33,9 @@
 
 // Standard indexes for arrays
 #define IDX_ECG 0 // ElectroCardioGram
-#define IDX_PPG 1 // PhotoPletismoGram
-#define IDX_GSR 2 // Galvanic Skin Response
-#define IDX_TMP 3 // TeMPerature
-#define IDX_RVL 4 // Respiratory VoLume
+#define IDX_GSR 1 // Galvanic Skin Response
+#define IDX_TMP 2 // TeMPerature
+#define IDX_RVL 3 // Respiratory VoLume
 
 // MQTT Management stuff
 espMqttClientAsync mqttClient; // The actual MQTT Client instance
@@ -66,7 +65,6 @@ JsonDocument settings;
 TaskHandle_t* taskHandles[NSIGNALS] = {nullptr}; // Stores handles pointing to created RTOS tasks
 const std::unordered_map<std::string, uint8_t> taskHandleIndexes = { // Matches signalName to correct index of the handle to the vTask() which samples that signal.
   {"ECG", IDX_ECG},
-  {"PPG", IDX_PPG},
   {"GSR", IDX_GSR},
   {"TMP", IDX_TMP}
 };
@@ -163,7 +161,7 @@ void vTask_SampleMAX86150(void *pvParameters) {
   Serial.println("[ECG] Timerdata set.");
 
   while (dataOk) {
-    //xWasDelayed = xTaskDelayUntil(&xLastWakeTime, samplePeriod);
+    xWasDelayed = xTaskDelayUntil(&xLastWakeTime, samplePeriod);
 
     //Serial.println(F("[ECG] Polling max86150..."));
     if (max86150->check() > 0) { // check() polls the sensor, and saves all the available samples in the local FIFO.
@@ -232,6 +230,84 @@ void vTask_SampleMAX86150(void *pvParameters) {
 }
 
 
+void vTask_SampleFlowmeter(void *pvParameters) {
+  // Recover settings
+  //JsonObject config = *static_cast<JsonObject *>(pvParameters);
+  const double Tsample = 10; // [ms]
+  const int overlay = 20;
+  const int npacket = 200;
+  const uint8_t FLOWSENS_PIN = 35;
+  const uint8_t FILTER_NSAMPLES = 80;
+
+  strcpy(topicPrefix, "signal/");
+  // Build full topic name
+  char topicFLOW[strlen(topicPrefix) + 4];
+  strcpy(topicFLOW, topicPrefix);
+  strcpy(&topicFLOW[strlen(topicPrefix)], "FLOW");
+  
+  // Initialize sensor
+  pinMode(FLOWSENS_PIN, INPUT);
+
+  // Check that we have everything we need
+  const bool dataOk = (Tsample && overlay && npacket);
+  if (!dataOk) { Serial.print(F("[ERROR] Uncastable settings for ECG")); }
+
+  // Prepare array to hold the samples
+  Serial.print(F("[FLOW] Creating samples arrays..."));
+  static long* samplesFLOW;
+  samplesFLOW = static_cast<long*>(pvPortMalloc(npacket * sizeof(long)));
+  long avg;
+  long total = 0;
+  int samples[FILTER_NSAMPLES] = {0};
+  int idx = 0;
+  uint8_t sampleidx = 0;
+  Serial.println(" done!");
+
+  // Prepare timing data
+  const TickType_t samplePeriod = pdMS_TO_TICKS(Tsample); // Convert [Hz] fsample to number of ticks period
+  Serial.printf("[%s] A sample will be acquired every %d ms, aka every %d ticks.\n", "FLOW", pdTICKS_TO_MS(samplePeriod), samplePeriod);
+  BaseType_t xWasDelayed;
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  Serial.println("[FLOW] Timerdata set.");
+
+  while (dataOk) {
+    xWasDelayed = xTaskDelayUntil(&xLastWakeTime, samplePeriod);
+
+    // Moving Average filter
+    total = total - samples[idx];
+    samples[idx] = analogRead(FLOWSENS_PIN);
+    total = total + samples[idx];
+    idx += 1;
+    if (idx >= FILTER_NSAMPLES) idx = 0;
+    avg = total / FILTER_NSAMPLES;
+    
+    samplesFLOW[sampleidx] = avg;
+
+    //Serial.println(F("[ECG] Checking if packet is ready..."));
+    if (sampleidx >= npacket) { // A packet is completeley filled and ready to be sent
+      /* Per library docs, espMqttClient::publish(...) should buffer the payload
+       * --> we don't need to worry about overwriting it before it is completely transmitted.
+       * espMqttClient::publish(...) expects the payload to be an `uint8_t`, but we've been storing
+       * samples as `uint16_t`s --> a cast is needed, keeping in mind that now, interpreting
+       * the sample array in this way, we'll have more elements, as 16/8 = 2.
+      */
+      mqttClient.publish(topicFLOW, 2, false, reinterpret_cast<uint8_t*>(samplesFLOW), npacket * 2);
+      //Serial.println(F("pub"));
+      
+      // Bring back the overlayed samples
+      sampleidx = 0;
+      for (uint8_t i = overlay; i > 0; i--) {
+        samplesFLOW[sampleidx] = samplesFLOW[npacket - i];
+        sampleidx++;
+      }
+    }
+
+  }
+
+  // TODO: !!! ensure this is run also on task deletion !!!
+  vPortFree(samplesFLOW);
+}
+
 
 
 void connectToWiFi(const char* ssid, const char* pswd) {
@@ -292,6 +368,7 @@ void _onMQTTConnect(bool sessionPresent) {
 
   // Create Sampling tasks
   xTaskCreatePinnedToCore(vTask_SampleMAX86150, "task_ECG", 2048, NULL, 10, taskHandles[IDX_ECG], APP_CPU_NUM);
+  xTaskCreatePinnedToCore(vTask_SampleFlowmeter, "task_FLOW", 2048, NULL, 10, taskHandles[IDX_RVL], APP_CPU_NUM);
 }
 
 void _onMQTTDisconnect(espMqttClientTypes::DisconnectReason reason) {
