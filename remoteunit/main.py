@@ -108,9 +108,10 @@ nextpagebtn = ttk.Button(footerframe, text= "-->", command= nextPage)
 
 # == Pages ==
 screens = [
+           pages.Page1(samples, newData, "Animation TEST"),
            pages.Page2(samples, newData, "ECG and PPG"),
            pages.Page3(samples, newData, "Respiratory FLOW"),
-           pages.Page1(samples, newData, "TEST")
+           pages.Page4(samples, newData, "TEMP")
            ]
 # o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o #
 

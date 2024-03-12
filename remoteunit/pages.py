@@ -265,11 +265,10 @@ class Page3(BasePage):
         super().build(container)
 
         # Create Axes where the data will be plotted
-        #plt.gcf().subplots(2, 1)
         self.axFLOW = plt.gcf().gca()
 
         # Aesthetics
-        self.axFLOW.set_title("FLOW Signal")
+        self.axFLOW.set_title("Respiratory Flow")
         self.axFLOW.set_xticks([])
 
         # X-Axis vector
@@ -295,3 +294,42 @@ class Page3(BasePage):
         self.flowLine.set_ydata(self.flowData)
 
         return (self.flowLine, )
+
+
+class Page4(BasePage):
+    """Page for TEMP.
+    """
+    def build(self, container):
+        super().build(container)
+
+        # Create Axes where the data will be plotted
+        plt.gcf().subplots(2, 1)
+        self.axTEMP = plt.gcf().get_axes()[0]
+
+        # Aesthetics
+        self.axTEMP.set_title("Body Temperature")
+        self.axTEMP.set_xticks([])
+
+        # X-Axis vector
+        self.xdata = [i for i in range(self.totDataPoints)]
+
+        # Initialize Y-Axes vectors
+        self.tempData = [0 for _ in self.xdata]
+
+        # Do the plots (aka draw and get Line2D objs)
+        self.tempLine, = self.axTEMP.plot(self.xdata, self.tempData)
+
+        # Set Plot vertical limits
+        self.axTEMP.set_ylim(bottom= -1, top= 2000)
+
+        # Define data sources
+        self.tempSample = self.sampleExtractor('TEMP')
+
+        self.tempIdx = 0
+
+
+    def _animateFrame(self, cursor) -> tuple[Line2D, ...]:
+        self.tempData[cursor] = next(self.tempSample)
+        self.tempLine.set_ydata(self.tempData)
+
+        return (self.tempLine, )
