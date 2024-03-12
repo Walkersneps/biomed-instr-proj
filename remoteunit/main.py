@@ -102,7 +102,7 @@ windowframe = ttk.Frame(window, padding= 10) # Will contain whole window
 footerframe = ttk.Frame(windowframe) # Will contain the footer
 
 # == Widgets ==
-closebtn = ttk.Button(footerframe, text= "Quit", command= _quit)
+closebtn    = ttk.Button(footerframe, text= "Quit", command= _quit)
 prevpagebtn = ttk.Button(footerframe, text= "<--", command= prevPage)
 nextpagebtn = ttk.Button(footerframe, text= "-->", command= nextPage)
 
@@ -111,7 +111,7 @@ screens = [
            pages.Page1(samples, newData, "Animation TEST"),
            pages.Page2(samples, newData, "ECG and PPG"),
            pages.Page3(samples, newData, "Respiratory FLOW"),
-           pages.Page4(samples, newData, "TEMP")
+           pages.Page4(samples, newData, "Temperature and GSR")
            ]
 # o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o #
 

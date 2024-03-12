@@ -297,7 +297,7 @@ class Page3(BasePage):
 
 
 class Page4(BasePage):
-    """Page for TEMP.
+    """Page for TEMP and GSR.
     """
     def build(self, container):
         super().build(container)
@@ -305,31 +305,40 @@ class Page4(BasePage):
         # Create Axes where the data will be plotted
         plt.gcf().subplots(2, 1)
         self.axTEMP = plt.gcf().get_axes()[0]
+        self.axGSR = plt.gcf().get_axes()[1]
 
         # Aesthetics
         self.axTEMP.set_title("Body Temperature")
+        self.axGSR.set_title("Galvanic Skin Response")
         self.axTEMP.set_xticks([])
+        self.axGSR.set_xticks([])
 
         # X-Axis vector
         self.xdata = [i for i in range(self.totDataPoints)]
 
         # Initialize Y-Axes vectors
         self.tempData = [0 for _ in self.xdata]
+        self.gsrData = [0 for _ in self.xdata]
 
         # Do the plots (aka draw and get Line2D objs)
         self.tempLine, = self.axTEMP.plot(self.xdata, self.tempData)
+        self.gsrLine, = self.axGSR.plot(self.xdata, self.gsrData)
 
         # Set Plot vertical limits
         self.axTEMP.set_ylim(bottom= -1, top= 2000)
+        self.axGSR.set_ylim(bottom= -1, top= 2000)
 
         # Define data sources
         self.tempSample = self.sampleExtractor('TEMP')
+        self.gsrSample = self.sampleExtractor('GSR')
 
         self.tempIdx = 0
 
 
     def _animateFrame(self, cursor) -> tuple[Line2D, ...]:
         self.tempData[cursor] = next(self.tempSample)
+        self.gsrData[cursor] = next(self.gsrSample)
         self.tempLine.set_ydata(self.tempData)
+        self.gsrLine.set_ydata(self.gsrData)
 
-        return (self.tempLine, )
+        return (self.tempLine, self.gsrLine)
