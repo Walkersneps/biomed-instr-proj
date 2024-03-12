@@ -1,4 +1,4 @@
-# Nome Progetto Fighissimo
+# Portable Physiological Signals Monitor
 ## Walter Carli and Dario Lucchini
 ### Biomedical Instrumentation Project [717.318]
 #### TU Graz
@@ -6,7 +6,9 @@
 
 #
 
-Project description here
+Implementation of a portable and non-invasive system for acquiring some physiological signals and displaying their values in real-time.
+
+Developed for the course _Biomedical Instrumentation Project_ offered at TU Graz.
 
 #
 #### Folder Structure
