@@ -231,8 +231,6 @@ void vTask_SampleMAX86150(void *pvParameters) {
 
 
 void vTask_SampleFlowmeter(void *pvParameters) {
-  // Recover settings
-  //JsonObject config = *static_cast<JsonObject *>(pvParameters);
   const double Tsample = 10; // [ms]
   const int overlay = 20;
   const int npacket = 200;
@@ -250,7 +248,7 @@ void vTask_SampleFlowmeter(void *pvParameters) {
 
   // Check that we have everything we need
   const bool dataOk = (Tsample && overlay && npacket);
-  if (!dataOk) { Serial.print(F("[ERROR] Uncastable settings for ECG")); }
+  if (!dataOk) { Serial.print(F("[ERROR] Uncastable settings for FLOW")); }
 
   // Prepare array to hold the samples
   Serial.print(F("[FLOW] Creating samples arrays..."));
@@ -308,6 +306,77 @@ void vTask_SampleFlowmeter(void *pvParameters) {
   vPortFree(samplesFLOW);
 }
 
+
+void vTask_SampleTemperature(void *pvParameters) {
+  const uint16_t Tsample = 1000; // [ms]
+  const int overlay = 5;
+  const int npacket = 20;
+  const uint8_t TEMPSENS_PIN = 32;
+  const uint8_t FILTER_NSAMPLES = 100;
+
+  strcpy(topicPrefix, "signal/");
+  // Build full topic name
+  char topicTEMP[strlen(topicPrefix) + 4];
+  strcpy(topicTEMP, topicPrefix);
+  strcpy(&topicTEMP[strlen(topicPrefix)], "TEMP");
+  
+  // Initialize sensor
+  pinMode(TEMPSENS_PIN, INPUT);
+
+  // Check that we have everything we need
+  const bool dataOk = (Tsample && overlay && npacket);
+  if (!dataOk) { Serial.print(F("[ERROR] Uncastable settings for TEMP")); }
+
+  // Prepare array to hold the samples
+  Serial.print(F("[TEMP] Creating samples arrays..."));
+  static float* samplesTEMP;
+  samplesTEMP = static_cast<float*>(pvPortMalloc(npacket * sizeof(float)));
+  long total = 0;
+  int i = 0;
+  uint8_t sampleidx = 0;
+  Serial.println(" done!");
+
+  // Prepare timing data
+  const TickType_t samplePeriod = pdMS_TO_TICKS(Tsample); // Convert [Hz] fsample to number of ticks period
+  Serial.printf("[%s] A sample will be acquired every %d ms, aka every %d ticks.\n", "TEMP", pdTICKS_TO_MS(samplePeriod), samplePeriod);
+  BaseType_t xWasDelayed;
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  Serial.println("[TEMP] Timerdata set.");
+
+  while (dataOk) {
+    xWasDelayed = xTaskDelayUntil(&xLastWakeTime, samplePeriod);
+
+    // Flat Average
+    total = 0;
+    for (i=0; i<FILTER_NSAMPLES; i++)
+      total += analogRead(TEMPSENS_PIN);
+    
+    samplesTEMP[sampleidx] = total / FILTER_NSAMPLES;
+
+    //Serial.println(F("[ECG] Checking if packet is ready..."));
+    if (sampleidx >= npacket) { // A packet is completeley filled and ready to be sent
+      /* Per library docs, espMqttClient::publish(...) should buffer the payload
+       * --> we don't need to worry about overwriting it before it is completely transmitted.
+       * espMqttClient::publish(...) expects the payload to be an `uint8_t`, but we've been storing
+       * samples as `uint16_t`s --> a cast is needed, keeping in mind that now, interpreting
+       * the sample array in this way, we'll have more elements, as 16/8 = 2.
+      */
+      mqttClient.publish(topicTEMP, 2, false, reinterpret_cast<uint8_t*>(samplesTEMP), npacket * 2);
+      //Serial.println(F("pub"));
+      
+      // Bring back the overlayed samples
+      sampleidx = 0;
+      for (uint8_t i = overlay; i > 0; i--) {
+        samplesTEMP[sampleidx] = samplesTEMP[npacket - i];
+        sampleidx++;
+      }
+    }
+
+  }
+
+  // TODO: !!! ensure this is run also on task deletion !!!
+  vPortFree(samplesTEMP);
+}
 
 
 void connectToWiFi(const char* ssid, const char* pswd) {
@@ -368,7 +437,8 @@ void _onMQTTConnect(bool sessionPresent) {
 
   // Create Sampling tasks
   xTaskCreatePinnedToCore(vTask_SampleMAX86150, "task_ECG", 2048, NULL, 10, taskHandles[IDX_ECG], APP_CPU_NUM);
-  xTaskCreatePinnedToCore(vTask_SampleFlowmeter, "task_FLOW", 2048, NULL, 10, taskHandles[IDX_RVL], APP_CPU_NUM);
+  xTaskCreatePinnedToCore(vTask_SampleFlowmeter, "task_FLOW", 2048, NULL, 9, taskHandles[IDX_RVL], APP_CPU_NUM);
+  xTaskCreatePinnedToCore(vTask_SampleFlowmeter, "task_TEMP", 2048, NULL, 4, taskHandles[IDX_TMP], APP_CPU_NUM);
 }
 
 void _onMQTTDisconnect(espMqttClientTypes::DisconnectReason reason) {
