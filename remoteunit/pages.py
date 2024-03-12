@@ -265,8 +265,8 @@ class Page3(BasePage):
         super().build(container)
 
         # Create Axes where the data will be plotted
-        plt.gcf().subplots(2, 1)
-        self.axFLOW = plt.gcf().get_axes()[0]
+        #plt.gcf().subplots(2, 1)
+        self.axFLOW = plt.gcf().gca()
 
         # Aesthetics
         self.axFLOW.set_title("FLOW Signal")
