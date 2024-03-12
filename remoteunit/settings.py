@@ -20,7 +20,14 @@ BIOSIGNALS: dict[str, dict[str, float]] = {"ECG": {
                                                 "overlay": 30,
                                                 "npacket": 200,
                                                 "priority": 10
-                                        },
+                                             },
+                                           "FLOW": {
+                                                "fsample": 200,
+                                                "fpacket": 1,
+                                                "overlay": 20,
+                                                "npacket": 200,
+                                                "priority": 10
+                                             },
                                         }
 SIGNED_BIOSIGNALS = ["ECG"]
 

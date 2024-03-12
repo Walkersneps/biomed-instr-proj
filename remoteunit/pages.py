@@ -152,6 +152,9 @@ class BasePage:
 
 
 class Page1(BasePage):
+    """Test Page.
+    Plots a sinusoid and random noise.
+    """
     def build(self, container):
         super().build(container)
 
@@ -197,6 +200,8 @@ class Page1(BasePage):
 
 
 class Page2(BasePage):
+    """Page for ECG + PPG IR.
+    """
     def build(self, container):
         super().build(container)
 
@@ -252,3 +257,41 @@ class Page2(BasePage):
         #self.ax1.cla()
         #plt.plot(self.xdata, self.ecgData)
 
+
+class Page3(BasePage):
+    """Page for FLOWMETER.
+    """
+    def build(self, container):
+        super().build(container)
+
+        # Create Axes where the data will be plotted
+        plt.gcf().subplots(2, 1)
+        self.axFLOW = plt.gcf().get_axes()[0]
+
+        # Aesthetics
+        self.axFLOW.set_title("FLOW Signal")
+        self.axFLOW.set_xticks([])
+
+        # X-Axis vector
+        self.xdata = [i for i in range(self.totDataPoints)]
+
+        # Initialize Y-Axes vectors
+        self.flowData = [0 for _ in self.xdata]
+
+        # Do the plots (aka draw and get Line2D objs)
+        self.flowLine, = self.axFLOW.plot(self.xdata, self.flowData)
+
+        # Set Plot vertical limits
+        self.axFLOW.set_ylim(bottom= -1, top= 2000)
+
+        # Define data sources
+        self.flowSample = self.sampleExtractor('FLOW')
+
+        self.flowIdx = 0
+
+
+    def _animateFrame(self, cursor) -> tuple[Line2D, ...]:
+        self.flowData[cursor] = next(self.flowSample)
+        self.flowLine.set_ydata(self.flowData)
+
+        return (self.flowLine, )
