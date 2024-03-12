@@ -314,6 +314,23 @@ void vTask_SampleTemperature(void *pvParameters) {
   const uint8_t TEMPSENS_PIN = 32;
   const uint8_t FILTER_NSAMPLES = 100;
 
+  // Conversion
+  /*
+  int Vo;
+  float c1 = 1.009249522e-03, c2 = 2.378405444e-04, c3 = 2.019202697e-07;
+  float delta_v;
+  float out;
+  float V_ref=3.3;
+  int R1=2490;
+  float Rt;
+  int R0=100;
+  float Temp;
+  float Temp2;
+  float a=3.9083e-3;
+  float b=-5.775e-7;
+  float G=14.53;
+  */
+
   strcpy(topicPrefix, "signal/");
   // Build full topic name
   char topicTEMP[strlen(topicPrefix) + 4];
@@ -352,6 +369,14 @@ void vTask_SampleTemperature(void *pvParameters) {
       total += analogRead(TEMPSENS_PIN);
     
     samplesTEMP[sampleidx] = total / FILTER_NSAMPLES;
+
+    /*
+    bits = analogRead(ThermistorPin);
+    vo=(bits/4095.0-1)*V_ref;
+    Rt=float(out/G)/(V_ref/R1);
+
+    Temp=(-a+sqrt((sq(a)-4*(b*(1-Rt/R0)))))/(2*b);
+    */
 
     //Serial.println(F("[ECG] Checking if packet is ready..."));
     if (sampleidx >= npacket) { // A packet is completeley filled and ready to be sent
