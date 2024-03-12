@@ -10,6 +10,7 @@
 //#include <BiosignalsAcquisition.h>
 #include <SensorsInitializations.h>
 #include <secrets.h>
+#include <FIR.h>
 
 // ## o-o-o-o SETTINGS o-o-o-o ##
 // ##############################
@@ -71,6 +72,46 @@ const std::unordered_map<std::string, uint8_t> taskHandleIndexes = { // Matches 
   {"TMP", IDX_TMP}
 };
 
+/* ## FIR Filter for ECG ##
+ filter designed with
+ http://t-filter.appspot.com
+
+sampling frequency: 200 Hz
+
+fixed point precision: 16 bits
+
+* 0 Hz - 1 Hz
+  gain = 0
+  desired attenuation = -40 dB
+  actual attenuation = n/a
+
+* 2 Hz - 25 Hz
+  gain = 1
+  desired ripple = 10 dB
+  actual ripple = n/a
+
+* 26 Hz - 100 Hz
+  gain = 0
+  desired attenuation = -40 dB
+  actual attenuation = n/a
+*/
+long ECG_FIR_coeffs[13] = {
+	-364,
+	-103,
+	-42,
+	60,
+	173,
+	262,
+	295,
+	262,
+	173,
+	60,
+	-42,
+	-103,
+	-364
+};
+FIR<long, 13> ECGfir; // Instantiate a filter object
+
 
 // FreeRTOS Tasks
 void vTask_SampleMAX86150(void *pvParameters) {
@@ -112,6 +153,9 @@ void vTask_SampleMAX86150(void *pvParameters) {
   int sampleIndex = 0;
   Serial.println(" done!");
 
+  // Setup the FIR filter
+  ECGfir.setFilterCoeffs(ECG_FIR_coeffs);
+
   // Prepare timing data
   const TickType_t samplePeriod = pdMS_TO_TICKS(1000 / fsample); // Convert [Hz] fsample to number of ticks period
   Serial.printf("[%s] A sample will be acquired every %d ms, aka every %d ticks.\n", "ECG/PPG", pdTICKS_TO_MS(samplePeriod), samplePeriod);
@@ -136,7 +180,7 @@ void vTask_SampleMAX86150(void *pvParameters) {
         * to the right 2 positions.
         */
         //Serial.printf("[ECG] saving data @idx %d...", sampleIndex);
-        samplesECG[sampleIndex] = static_cast<int16_t>(max86150->getFIFOECG() >> 2);
+        samplesECG[sampleIndex] = static_cast<int16_t>(ECGfir.processReading((max86150->getFIFOECG() >> 2))); // Apply the filter to the ECG reading
         samplesIR[sampleIndex] = static_cast<uint16_t>(max86150->getFIFOIR() >> 2);
         samplesRED[sampleIndex] = static_cast<uint16_t>(max86150->getFIFORed() >> 2);
         sampleIndex++;
