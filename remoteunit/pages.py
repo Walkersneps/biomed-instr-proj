@@ -32,9 +32,9 @@ class BasePage:
         self.samples = samples
         self.newData = newData
         self.title = pageTitle
-        self.totDataPoints = 120
+        self.totDataPoints = 300
 
-    def _animateFrame(self, _) -> tuple[Line2D]:
+    def _animateFrame(self, _) -> tuple[Line2D, ...]:
         """Defines the animation logic of the page.
         Override this function to implement plotting, etc...
 
@@ -43,10 +43,10 @@ class BasePage:
         """
         return (Line2D([], []),)
 
-    def animate(self, refreshInterval: int= cfg.PERIOD_PLOT['ECG']):
+    def animate(self, refreshInterval = 50):#cfg.PERIOD_PLOT['ECG']):
         """Initialize and start animation of plots in this page.
 
-    The animation can be stopped by deleting the reference to property `anim`
+        The animation can be stopped by deleting the reference to property `anim`
 
         Args:
             refreshInterval (int): Interval between subsequent plottings [ms]. Defaults to 100.
@@ -200,23 +200,52 @@ class Page2(BasePage):
     def build(self, container):
         super().build(container)
 
-        plt.gcf().subplots(1, 1)
-        self.ax1 = plt.gcf().get_axes()[0]
+        # Create Axes where the data will be plotted
+        plt.gcf().subplots(2, 1)
+        self.axECG = plt.gcf().get_axes()[0]
+        self.axPPGir = plt.gcf().get_axes()[1]
+
+        # Aesthetics
+        self.axECG.set_title("ECG Signal")
+        self.axPPGir.set_title("PPG IR Signal")
+        self.axECG.set_xticks([])
+        self.axPPGir.set_xticks([])
+
+        # X-Axis vector
         self.xdata = [i for i in range(self.totDataPoints)]
-        self.ecgData = [0 for i in self.xdata]
-        self.ecgLine, = self.ax1.plot(self.xdata, self.ecgData)
-        self.ax1.set_ylim(bottom= -1000.1, top= 1000.1)
+
+        # Initialize Y-Axes vectors
+        self.ecgData = [0 for _ in self.xdata]
+        self.ppgIrData = [0 for _ in self.xdata]
+
+        # Do the plots (aka draw and get Line2D objs)
+        self.ecgLine, = self.axECG.plot(self.xdata, self.ecgData)
+        self.ppgIrLine, = self.axPPGir.plot(self.xdata, self.ppgIrData)
+
+        # Set Plot vertical limits
+        self.axECG.set_ylim(bottom= -2000.1, top= 3000)
+        self.axPPGir.set_ylim(bottom= 0, top= 10000)
 
         # Define data sources
         self.ecgSample = self.sampleExtractor('ECG')
+        self.ppgIRSample = self.sampleExtractor('PPGIR')
+
+        self.ecgIdx = 0
 
 
-    def _animateFrame(self, cursor) -> tuple[Line2D]:
-        nxt = next(self.ecgSample)
-        #print(f'at frame {cursor}, extracted {nxt}')
-        self.ecgData[cursor] = nxt
+    def _animateFrame(self, cursor) -> tuple[Line2D, ...]:
+        for i in range(self.ecgIdx, self.ecgIdx+10):
+            self.ecgData[i] = next(self.ecgSample)
+        self.ecgIdx = self.ecgIdx + 10
+        if self.ecgIdx >= self.totDataPoints:
+            self.ecgIdx = 0
         self.ecgLine.set_ydata(self.ecgData)
-        return (self.ecgLine, )
+        print(self.ecgData)
+
+        #self.ppgIrData[cursor] = next(self.ppgIRSample)
+        #self.ppgIrLine.set_ydata(self.ppgIrData)
+
+        return (self.ecgLine, )#, self.ppgIrLine)
         #plt.draw()
         #self.ax1.cla()
         #plt.plot(self.xdata, self.ecgData)

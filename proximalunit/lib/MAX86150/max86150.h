@@ -36,6 +36,11 @@
   //SAMD21 uses RingBuffer.h
   #define I2C_BUFFER_LENGTH SERIAL_BUFFER_SIZE
 
+#elif defined(ESP32)
+  #ifndef I2C_BUFFER_LENGTH
+    #define I2C_BUFFER_LENGTH 32
+  #endif
+
 #else
 
   //The catch-all default is 32
@@ -141,7 +146,7 @@ class MAX86150 {
 
   void bitMask(uint8_t reg, uint8_t mask, uint8_t thing);
 
-   #define STORAGE_SIZE 4 //Each long is 4 bytes so limit this to fit on your micro
+  #define STORAGE_SIZE 6 //Each long is 4 bytes so limit this to fit on your micro
   typedef struct Record
   {
     uint32_t red[STORAGE_SIZE];
