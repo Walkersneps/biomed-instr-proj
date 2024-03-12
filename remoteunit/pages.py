@@ -236,16 +236,18 @@ class Page2(BasePage):
     def _animateFrame(self, cursor) -> tuple[Line2D, ...]:
         for i in range(self.ecgIdx, self.ecgIdx+10):
             self.ecgData[i] = next(self.ecgSample)
+            self.ppgIrData[i] = next(self.ppgIRSample)
         self.ecgIdx = self.ecgIdx + 10
         if self.ecgIdx >= self.totDataPoints:
             self.ecgIdx = 0
         self.ecgLine.set_ydata(self.ecgData)
-        print(self.ecgData)
+        self.ppgIrLine.set_ydata(self.ppgIrData)
+        #print(self.ecgData)
 
         #self.ppgIrData[cursor] = next(self.ppgIRSample)
         #self.ppgIrLine.set_ydata(self.ppgIrData)
 
-        return (self.ecgLine, )#, self.ppgIrLine)
+        return (self.ecgLine, self.ppgIrLine)#, self.ppgIrLine)
         #plt.draw()
         #self.ax1.cla()
         #plt.plot(self.xdata, self.ecgData)
