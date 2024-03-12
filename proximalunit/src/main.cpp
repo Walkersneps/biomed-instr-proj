@@ -7,6 +7,7 @@
 #include <espMqttClientAsync.h>
 #include <ArduinoJson.h>
 #include <max86150.h>
+#include <protocentral_TLA20xx.h>
 #include <SensorsInitializations.h>
 #include <secrets.h>
 #include <FIR.h>
@@ -229,7 +230,6 @@ void vTask_SampleMAX86150(void *pvParameters) {
   vPortFree(samplesRED);
 }
 
-
 void vTask_SampleFlowmeter(void *pvParameters) {
   const double Tsample = 10; // [ms]
   const int overlay = 20;
@@ -305,7 +305,6 @@ void vTask_SampleFlowmeter(void *pvParameters) {
   // TODO: !!! ensure this is run also on task deletion !!!
   vPortFree(samplesFLOW);
 }
-
 
 void vTask_SampleTemperature(void *pvParameters) {
   const uint16_t Tsample = 1000; // [ms]
@@ -403,6 +402,88 @@ void vTask_SampleTemperature(void *pvParameters) {
   vPortFree(samplesTEMP);
 }
 
+void vTask_SampleGSR(void *pvParameters) {
+  #define TLA20XX_I2C_ADDR 0x49
+  const uint16_t Tsample = 100; // [ms]
+  const int overlay = 10;
+  const int npacket = 80;
+  const uint8_t FILTER_NSAMPLES = 10;
+
+  strcpy(topicPrefix, "signal/");
+  // Build full topic name
+  char topicGSR[strlen(topicPrefix) + 3];
+  strcpy(topicGSR, topicPrefix);
+  strcpy(&topicGSR[strlen(topicPrefix)], "GSR");
+  
+  // Initialize sensor
+  TLA20XX tinyGSR(TLA20XX_I2C_ADDR);
+  tinyGSR.begin();
+  tinyGSR.setMode(TLA20XX::OP_CONTINUOUS);
+  tinyGSR.setDR(TLA20XX::DR_128SPS);
+  tinyGSR.setFSR(TLA20XX::FSR_2_048V);
+  tinyGSR.setMux(TLA20XX::MUX_AIN0_GND); // Set default channel as AIN0 <-> GND
+
+  // Check that we have everything we need
+  const bool dataOk = (Tsample && overlay && npacket);
+  if (!dataOk) { Serial.print(F("[ERROR] Uncastable settings for GSR")); }
+
+  // Prepare array to hold the samples
+  Serial.print(F("[GSR] Creating samples arrays..."));
+  static float* samplesGSR;
+  samplesGSR = static_cast<float*>(pvPortMalloc(npacket * sizeof(float)));
+  float total = 0;
+  float reading;
+  float filterSamples[FILTER_NSAMPLES];
+  int filtidx = 0;
+  uint8_t sampleidx = 0;
+  Serial.println(" done!");
+
+  // Prepare timing data
+  const TickType_t samplePeriod = pdMS_TO_TICKS(Tsample); // Convert [Hz] fsample to number of ticks period
+  Serial.printf("[%s] A sample will be acquired every %d ms, aka every %d ticks.\n", "GSR", pdTICKS_TO_MS(samplePeriod), samplePeriod);
+  BaseType_t xWasDelayed;
+  TickType_t xLastWakeTime = xTaskGetTickCount();
+  Serial.println("[GSR] Timerdata set.");
+
+  while (dataOk) {
+    xWasDelayed = xTaskDelayUntil(&xLastWakeTime, samplePeriod);
+
+    // Moving Average Filter
+    reading = tinyGSR.read_adc(); // +/- 2.048 V FSR, 1 LSB = 1 mV
+    total = total - filterSamples[filtidx];
+    filterSamples[filtidx] = reading;
+    total = total + filterSamples[filtidx];
+
+    filtidx += 1;
+    if (filtidx >= FILTER_NSAMPLES) filtidx = 0;
+
+    samplesGSR[sampleidx] = total / FILTER_NSAMPLES;
+
+    //Serial.println(F("[ECG] Checking if packet is ready..."));
+    if (sampleidx >= npacket) { // A packet is completeley filled and ready to be sent
+      /* Per library docs, espMqttClient::publish(...) should buffer the payload
+       * --> we don't need to worry about overwriting it before it is completely transmitted.
+       * espMqttClient::publish(...) expects the payload to be an `uint8_t`, but we've been storing
+       * samples as `uint16_t`s --> a cast is needed, keeping in mind that now, interpreting
+       * the sample array in this way, we'll have more elements, as 16/8 = 2.
+      */
+      mqttClient.publish(topicGSR, 2, false, reinterpret_cast<uint8_t*>(samplesGSR), npacket * 2);
+      //Serial.println(F("pub"));
+      
+      // Bring back the overlayed samples
+      sampleidx = 0;
+      for (uint8_t i = overlay; i > 0; i--) {
+        samplesGSR[sampleidx] = samplesGSR[npacket - i];
+        sampleidx++;
+      }
+    }
+
+  }
+
+  // TODO: !!! ensure this is run also on task deletion !!!
+  vPortFree(samplesGSR);
+}
+
 
 void connectToWiFi(const char* ssid, const char* pswd) {
   Serial.printf("[MAIN] Connecting to WiFi... ssid: '%s'. password: '%s'.\n", ssid, pswd);
@@ -464,6 +545,7 @@ void _onMQTTConnect(bool sessionPresent) {
   xTaskCreatePinnedToCore(vTask_SampleMAX86150, "task_ECG", 2048, NULL, 10, taskHandles[IDX_ECG], APP_CPU_NUM);
   xTaskCreatePinnedToCore(vTask_SampleFlowmeter, "task_FLOW", 2048, NULL, 9, taskHandles[IDX_RVL], APP_CPU_NUM);
   xTaskCreatePinnedToCore(vTask_SampleFlowmeter, "task_TEMP", 2048, NULL, 4, taskHandles[IDX_TMP], APP_CPU_NUM);
+  xTaskCreatePinnedToCore(vTask_SampleFlowmeter, "task_GSR", 2048, NULL, 8, taskHandles[IDX_GSR], APP_CPU_NUM);
 }
 
 void _onMQTTDisconnect(espMqttClientTypes::DisconnectReason reason) {
