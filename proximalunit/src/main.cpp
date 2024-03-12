@@ -7,7 +7,6 @@
 #include <espMqttClientAsync.h>
 #include <ArduinoJson.h>
 #include <max86150.h>
-//#include <BiosignalsAcquisition.h>
 #include <SensorsInitializations.h>
 #include <secrets.h>
 #include <FIR.h>
@@ -15,7 +14,7 @@
 // ## o-o-o-o SETTINGS o-o-o-o ##
 // ##############################
 // ###  Biosignals Settings  ###
-#define NSIGNALS 5 // How many signals we're acquiring
+#define NSIGNALS 4 // How many signals we're acquiring
 
 // ###  Wifi Settings  ###
 #define WIFI_IP_SELF IPAddress(10, 42, 0, 171)
