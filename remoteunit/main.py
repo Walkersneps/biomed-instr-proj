@@ -15,7 +15,8 @@ from tkinter import ttk
 
 import pages
 import settings as cfg
-from communication import MQTTManager
+
+import bluetooth as blt
 
 import matplotlib.pyplot as plt
 plt.style.use('dark_background')
@@ -87,12 +88,10 @@ samples: dict[str, dict[str, list[int]]] = {signal: {arr: [0
                                                            for _ in range(cfg.PACKET_SIZES[signal])]
                                                      for arr in ['new', 'old']}
                                             for signal in cfg.BIOSIGNALS}
-# For each biosignals, holds a flag signalling whether a new MQTT data packet has arrived.
-newData: dict[str, bool] = { signal: False for signal in cfg.BIOSIGNALS }
 
 
 # === Communication ===
-mqtt = MQTTManager(samples, newData)
+bltSocket = blt.BluetoothSocket(blt.RFCOMM)
 
 
 # === GUI Objects ===
@@ -107,8 +106,8 @@ prevpagebtn = ttk.Button(footerframe, text= "<--", command= prevPage)
 nextpagebtn = ttk.Button(footerframe, text= "-->", command= nextPage)
 
 # == Pages ==
-screens = [pages.Page1(samples, newData, "1st Page"),
-           pages.Page2(samples, newData, "2nd Page")
+screens = [pages.Page1(samples, "1st Page"),
+           pages.Page2(samples, bltSocket, "2nd Page")
            ]
 # o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o #
 
@@ -128,8 +127,8 @@ nextpagebtn.grid(row= 0, column= 3)
 
 
 # === The juicy part ===
-print("[MAIN] Starting MQTT loop...")
-mqtt.c.loop_start()
+print("[MAIN] Connecting Bluetooth socket...")
+bltSocket.connect((cfg.BT_MAC_REMOTEUNIT, cfg.BT_PORT))
 
 print("[MAIN] Starting Tk graphics loop...")
 _makePage()

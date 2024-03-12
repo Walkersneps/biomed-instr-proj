@@ -18,7 +18,6 @@ class BasePage:
     """
     def __init__(self,
                  samples: dict[str, dict[str, list[int]]],
-                 newData: dict[str, bool],
                  pageTitle: str = "Generic Page"
                 ) -> None:
         """Create new instance of a Page.
@@ -30,7 +29,6 @@ class BasePage:
         self.anim = None
         self.canvas = None
         self.samples = samples
-        self.newData = newData
         self.title = pageTitle
         self.totDataPoints = 300
 
@@ -43,7 +41,7 @@ class BasePage:
         """
         return (Line2D([], []),)
 
-    def animate(self, refreshInterval = 50):#cfg.PERIOD_PLOT['ECG']):
+    def animate(self, refreshInterval = 1):#cfg.PERIOD_PLOT['ECG']):
         """Initialize and start animation of plots in this page.
 
         The animation can be stopped by deleting the reference to property `anim`
@@ -63,71 +61,6 @@ class BasePage:
         """
         del self.anim
         del self.canvas
-
-    def sampleExtractor(self, signalName: str):
-        """Generates the next sample which needs plotting.
-        Internally handles the event of new sample packet.
-
-        Args:
-            signalName (str): The name of the signal
-
-        Yields:
-            int: The next sample which needs to be plotted 
-        """
-        x = 0
-        leftovers = False
-        outOfSamples = True
-        unplottedSamples = 0
-
-        overlay = cfg.OVERLAY_SIZES[signalName]
-        pktsize = cfg.PACKET_SIZES[signalName]
-
-        while True:
-            #print(self.samples)
-            #print(signalName)
-            if leftovers:
-                if self.newData[signalName] is True:
-                    print(f"[WARN] Fatal: I'm plotting data way slower than I'm receiving it! Samples are being lost!!")
-                    # TODO: handle this
-                if unplottedSamples > overlay: # I'm still consuming the backlog
-                    yield self.samples[signalName]['old'][x]
-                    x += 1
-                    unplottedSamples -= 1
-                else: # Done consuming the backlog! The next sample I have to plot is the first overlayed one --> I can find it @ start of 'new' array
-                    x = 0
-                    leftovers = False
-                    yield self.samples[signalName]['new'][0]
-                    x += 1
-
-            else: # no leftovers
-                if self.newData[signalName] is True: # just received a new data packet --> the series I was reading is now in the 'old' array, while new data is the 'new' array
-                    unplottedSamples = pktsize - x
-                    if x == 0: # That's either the first pkt we got, or we had already consumed all samples in the previous pkt (and x was set to 0 after yielding the last sample in that batch)
-                        yield self.samples[signalName]['new'][0]
-                        x += 1
-                    elif unplottedSamples > overlay: # Data packet arrived earlier than expected --> I have leftovers sample to use from old array
-                        leftovers = True
-                        yield self.samples[signalName]['old'][x]
-                        x += 1
-                        unplottedSamples -= 1
-                    else: # Good situation: data packet arrived while I was plotting overlayed data
-                        x = overlay - unplottedSamples
-                        yield self.samples[signalName]['new'][x]
-                        x += 1
-                    self.newData[signalName] = False
-                    outOfSamples = False
-
-                else: # no new data packet received
-                    if outOfSamples:
-                        yield 0
-                    elif x < (pktsize - 1):
-                        yield self.samples[signalName]['new'][x]
-                        x += 1
-                    else: # aka: x==(totDataPoints-1). NB: that should never happen, bc due to sample frames overlapping, I should have received new data well before running out of samples.
-                        print(f"[WARN] A data packet of {signalName} is late!")
-                        yield self.samples[signalName]['new'][x]
-                        x = 0
-                        outOfSamples = True
 
     def build(self, container: ttk.Frame):
         """Builds the main graphical elements of the page.
@@ -197,50 +130,55 @@ class Page1(BasePage):
 
 
 class Page2(BasePage):
+    def __init__(self, samples: dict[str, dict[str, list[int]]], bluetoothSocket, pageTitle: str = "Generic Page") -> None:
+        super().__init__(samples, pageTitle)
+        self.btSocket = bluetoothSocket
+
     def build(self, container):
         super().build(container)
 
         # Create Axes where the data will be plotted
-        plt.gcf().subplots(2, 1)
+        #plt.gcf().subplots(2, 1)
+        plt.gcf().subplots(1, 1)
         self.axECG = plt.gcf().get_axes()[0]
-        self.axPPGir = plt.gcf().get_axes()[1]
+        #self.axPPGir = plt.gcf().get_axes()[1]
 
         # Aesthetics
         self.axECG.set_title("ECG Signal")
-        self.axPPGir.set_title("PPG IR Signal")
+        #self.axPPGir.set_title("PPG IR Signal")
         self.axECG.set_xticks([])
-        self.axPPGir.set_xticks([])
+        #self.axPPGir.set_xticks([])
 
         # X-Axis vector
         self.xdata = [i for i in range(self.totDataPoints)]
 
         # Initialize Y-Axes vectors
         self.ecgData = [0 for _ in self.xdata]
-        self.ppgIrData = [0 for _ in self.xdata]
+        #self.ppgIrData = [0 for _ in self.xdata]
 
         # Do the plots (aka draw and get Line2D objs)
         self.ecgLine, = self.axECG.plot(self.xdata, self.ecgData)
-        self.ppgIrLine, = self.axPPGir.plot(self.xdata, self.ppgIrData)
+        #self.ppgIrLine, = self.axPPGir.plot(self.xdata, self.ppgIrData)
 
         # Set Plot vertical limits
         self.axECG.set_ylim(bottom= -2000.1, top= 3000)
-        self.axPPGir.set_ylim(bottom= 0, top= 10000)
-
-        # Define data sources
-        self.ecgSample = self.sampleExtractor('ECG')
-        self.ppgIRSample = self.sampleExtractor('PPGIR')
+        #self.axPPGir.set_ylim(bottom= 0, top= 10000)
 
         self.ecgIdx = 0
 
 
-    def _animateFrame(self, cursor) -> tuple[Line2D, ...]:
-        for i in range(self.ecgIdx, self.ecgIdx+10):
-            self.ecgData[i] = next(self.ecgSample)
-        self.ecgIdx = self.ecgIdx + 10
-        if self.ecgIdx >= self.totDataPoints:
-            self.ecgIdx = 0
-        self.ecgLine.set_ydata(self.ecgData)
-        print(self.ecgData)
+    def _animateFrame(self, _) -> tuple[Line2D, ...]:
+        data = self.btSocket.recv(2048).decode()
+        if data:
+            samps = data.splitlines()
+
+            i = 0
+            while i < len(samps):
+                self.ecgData[self.ecgIdx + i] = int(data[i])
+                if self.ecgIdx + i >= self.totDataPoints:
+                    self.ecgIdx = 0
+
+            self.ecgLine.set_ydata(self.ecgData)
 
         #self.ppgIrData[cursor] = next(self.ppgIRSample)
         #self.ppgIrLine.set_ydata(self.ppgIrData)
