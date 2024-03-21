@@ -1,45 +1,45 @@
 # o-o-o-o ACQUISITION SYSTEM SETTINGS o-o-o-o #
 # NB!!! Make sure that 'fsample' is an integer multiple of 'fpacket' !!!
 BIOSIGNALS: dict[str, dict[str, float]] = {"ECG": {
-                                                   "fsample": 200,
-                                                   "fpacket": 1,
+                                                   "fsample": 220,
+                                                   "fpacket": 1.222,
                                                    "overlay": 20,
                                                    "npacket": 200,
                                                    "priority": 10
                                                 },
                                            "PPGRed": {
-                                                   "fsample": 200,
-                                                   "fpacket": 1,
-                                                   "overlay": 30,
+                                                   "fsample": 220,
+                                                   "fpacket": 1.222,
+                                                   "overlay": 20,
                                                    "npacket": 200,
                                                    "priority": 10
                                                 },
                                            "PPGIR": {
-                                                "fsample": 200,
-                                                "fpacket": 1,
-                                                "overlay": 30,
+                                                "fsample": 220,
+                                                "fpacket": 1.222,
+                                                "overlay": 20,
                                                 "npacket": 200,
                                                 "priority": 10
                                              },
                                            "FLOW": {
-                                                "fsample": 200,
-                                                "fpacket": 1,
+                                                "fsample": 100,
+                                                "fpacket": 0.556,
                                                 "overlay": 20,
                                                 "npacket": 200,
                                                 "priority": 10
                                              },
                                            "TEMP": {
                                                 "fsample": 1,
-                                                "fpacket": 1,
+                                                "fpacket": 0.067,
                                                 "overlay": 5,
                                                 "npacket": 20,
                                                 "priority": 10
                                              },
                                            "GSR": {
-                                                "fsample": 200,
-                                                "fpacket": 1,
-                                                "overlay": 20,
-                                                "npacket": 200,
+                                                "fsample": 10,
+                                                "fpacket": 0.143,
+                                                "overlay": 10,
+                                                "npacket": 80,
                                                 "priority": 10
                                              },
                                         }
@@ -65,5 +65,5 @@ OVERLAY_SIZES: dict[str, int] = {signal: int(props['overlay']) for signal, props
 
 FRAMERATE_PLOT: dict[str, int] = {signal: int((PACKET_SIZES[signal] - (3*OVERLAY_SIZES[signal]/4)) * props['fpacket']) for signal, props in BIOSIGNALS.items()}  #(packet_size - overlay) * fpacket = [samplesToPlot/packet] * [packets/sec] = [samplesToPlot/sec]
 #FRAMERATE_PLOT: dict[str, int] = {signal: int(PACKET_SIZES[signal] * props['fpacket']) for signal, props in BIOSIGNALS.items()}
-PERIOD_PLOT: dict[str, int] = {signal: int((1/framerate) * 1000) for signal, framerate in FRAMERATE_PLOT.items()} # [ms]
-print(PERIOD_PLOT['ECG'])
+#PERIOD_PLOT: dict[str, int] = {signal: int((1/framerate) * 1000) for signal, framerate in FRAMERATE_PLOT.items()} # [ms]
+#print(PERIOD_PLOT['ECG'])
