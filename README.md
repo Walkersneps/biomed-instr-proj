@@ -1,5 +1,5 @@
 # Portable Physiological Signals Monitor
-## Walter Carli and Dario Lucchini
+## Walter Carli
 ### Biomedical Instrumentation Project [717.318]
 #### TU Graz
 ##### Academic Year 2023-2024 Winter Semester
